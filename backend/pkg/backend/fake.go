@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/apiclarity/apiclarity/backend/pkg/k8straceannotator"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -82,7 +83,7 @@ func (b *Backend) handleHTTPTraceFromFile(fileName string) error {
 	if err := json.Unmarshal(byteValue, &trace); err != nil {
 		return fmt.Errorf("failed to unmarshal. %v", err)
 	}
-	if err := b.handleHTTPTrace(&trace); err != nil {
+	if err := b.handleHTTPTrace(k8straceannotator.NewK8SAnnotatedK8STelemetry(&trace, nil, nil)); err != nil {
 		return fmt.Errorf("failed to handle trace for file: %v. %v", fileName, err)
 	}
 	return nil

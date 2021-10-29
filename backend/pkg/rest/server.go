@@ -17,6 +17,7 @@ package rest
 
 import (
 	"fmt"
+	"github.com/apiclarity/apiclarity/backend/pkg/k8straceannotator"
 
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/runtime/middleware"
@@ -31,6 +32,7 @@ import (
 type Server struct {
 	server     *restapi.Server
 	speculator *_speculator.Speculator
+	k8sclient  k8straceannotator.K8sClient
 }
 
 func CreateRESTServer(port int, speculator *_speculator.Speculator) (*Server, error) {

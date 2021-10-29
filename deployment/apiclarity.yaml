@@ -191,7 +191,8 @@ spec:
             runAsUser: 1001
       containers:
         - name: apiclarity
-          image: ghcr.io/apiclarity/apiclarity:latest
+          image: danielvladco/apiclarity:558a780639d7cbb9f1964ae15d7ca7f8db6c2052
+          imagePullPolicy: Always
           args:
             - run
           env:
@@ -270,6 +271,15 @@ metadata:
   name: apiclarity
   namespace: apiclarity
 rules:
+- apiGroups: [ "" ]
+  resources: [ "pods" ]
+  verbs: [ "list", "get", "watch" ]
+- apiGroups: [ "apps" ]
+  resources: [ "deployments" ]
+  verbs: [ "list", "get", "watch" ]
+- apiGroups: [ "apps" ]
+  resources: [ "replicasets" ]
+  verbs: [ "list", "get", "watch" ]
 - apiGroups: [""]
   resources: ["nodes", "services"]
   verbs: ["get", "list", "watch"]

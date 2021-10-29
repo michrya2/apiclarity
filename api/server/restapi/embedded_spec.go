@@ -709,8 +709,14 @@ func init() {
         "apiType": {
           "$ref": "#/definitions/ApiType"
         },
+        "bflaStatus": {
+          "$ref": "#/definitions/BFLAStatus"
+        },
         "destinationIP": {
           "type": "string"
+        },
+        "destinationK8sObject": {
+          "$ref": "#/definitions/K8sObjectRef"
         },
         "destinationPort": {
           "type": "integer"
@@ -741,6 +747,9 @@ func init() {
         },
         "sourceIP": {
           "type": "string"
+        },
+        "sourceK8sObject": {
+          "$ref": "#/definitions/K8sObjectRef"
         },
         "specDiffType": {
           "$ref": "#/definitions/DiffType"
@@ -899,6 +908,14 @@ func init() {
         }
       }
     },
+    "BFLAStatus": {
+      "type": "string",
+      "enum": [
+        "NONE",
+        "SUSPICIOUS_SRC_DENIED",
+        "SUSPICIOUS_SRC_ALLOWED"
+      ]
+    },
     "DiffType": {
       "type": "string",
       "default": "NO_DIFF",
@@ -936,6 +953,26 @@ func init() {
         "TRACE",
         "PATCH"
       ]
+    },
+    "K8sObjectRef": {
+      "type": "object",
+      "properties": {
+        "apiVersion": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "uid": {
+          "type": "string"
+        }
+      }
     },
     "MethodAndPath": {
       "type": "object",
@@ -2613,8 +2650,14 @@ func init() {
         "apiType": {
           "$ref": "#/definitions/ApiType"
         },
+        "bflaStatus": {
+          "$ref": "#/definitions/BFLAStatus"
+        },
         "destinationIP": {
           "type": "string"
+        },
+        "destinationK8sObject": {
+          "$ref": "#/definitions/K8sObjectRef"
         },
         "destinationPort": {
           "type": "integer"
@@ -2645,6 +2688,9 @@ func init() {
         },
         "sourceIP": {
           "type": "string"
+        },
+        "sourceK8sObject": {
+          "$ref": "#/definitions/K8sObjectRef"
         },
         "specDiffType": {
           "$ref": "#/definitions/DiffType"
@@ -2803,6 +2849,14 @@ func init() {
         }
       }
     },
+    "BFLAStatus": {
+      "type": "string",
+      "enum": [
+        "NONE",
+        "SUSPICIOUS_SRC_DENIED",
+        "SUSPICIOUS_SRC_ALLOWED"
+      ]
+    },
     "DiffType": {
       "type": "string",
       "default": "NO_DIFF",
@@ -2840,6 +2894,26 @@ func init() {
         "TRACE",
         "PATCH"
       ]
+    },
+    "K8sObjectRef": {
+      "type": "object",
+      "properties": {
+        "apiVersion": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "uid": {
+          "type": "string"
+        }
+      }
     },
     "MethodAndPath": {
       "type": "object",

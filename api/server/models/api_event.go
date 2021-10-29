@@ -25,8 +25,14 @@ type APIEvent struct {
 	// api type
 	APIType APIType `json:"apiType,omitempty"`
 
+	// bfla status
+	BflaStatus BFLAStatus `json:"bflaStatus,omitempty"`
+
 	// destination IP
 	DestinationIP string `json:"destinationIP,omitempty"`
+
+	// destination k8s object
+	DestinationK8sObject *K8sObjectRef `json:"destinationK8sObject,omitempty"`
 
 	// destination port
 	DestinationPort int64 `json:"destinationPort,omitempty"`
@@ -55,6 +61,9 @@ type APIEvent struct {
 	// source IP
 	SourceIP string `json:"sourceIP,omitempty"`
 
+	// source k8s object
+	SourceK8sObject *K8sObjectRef `json:"sourceK8sObject,omitempty"`
+
 	// spec diff type
 	SpecDiffType *DiffType `json:"specDiffType,omitempty"`
 
@@ -74,7 +83,19 @@ func (m *APIEvent) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
+	if err := m.validateBflaStatus(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateDestinationK8sObject(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateMethod(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateSourceK8sObject(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -107,6 +128,38 @@ func (m *APIEvent) validateAPIType(formats strfmt.Registry) error {
 	return nil
 }
 
+func (m *APIEvent) validateBflaStatus(formats strfmt.Registry) error {
+	if swag.IsZero(m.BflaStatus) { // not required
+		return nil
+	}
+
+	if err := m.BflaStatus.Validate(formats); err != nil {
+		if ve, ok := err.(*errors.Validation); ok {
+			return ve.ValidateName("bflaStatus")
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (m *APIEvent) validateDestinationK8sObject(formats strfmt.Registry) error {
+	if swag.IsZero(m.DestinationK8sObject) { // not required
+		return nil
+	}
+
+	if m.DestinationK8sObject != nil {
+		if err := m.DestinationK8sObject.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("destinationK8sObject")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (m *APIEvent) validateMethod(formats strfmt.Registry) error {
 	if swag.IsZero(m.Method) { // not required
 		return nil
@@ -117,6 +170,23 @@ func (m *APIEvent) validateMethod(formats strfmt.Registry) error {
 			return ve.ValidateName("method")
 		}
 		return err
+	}
+
+	return nil
+}
+
+func (m *APIEvent) validateSourceK8sObject(formats strfmt.Registry) error {
+	if swag.IsZero(m.SourceK8sObject) { // not required
+		return nil
+	}
+
+	if m.SourceK8sObject != nil {
+		if err := m.SourceK8sObject.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("sourceK8sObject")
+			}
+			return err
+		}
 	}
 
 	return nil
@@ -159,7 +229,19 @@ func (m *APIEvent) ContextValidate(ctx context.Context, formats strfmt.Registry)
 		res = append(res, err)
 	}
 
+	if err := m.contextValidateBflaStatus(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.contextValidateDestinationK8sObject(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.contextValidateMethod(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.contextValidateSourceK8sObject(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -185,6 +267,32 @@ func (m *APIEvent) contextValidateAPIType(ctx context.Context, formats strfmt.Re
 	return nil
 }
 
+func (m *APIEvent) contextValidateBflaStatus(ctx context.Context, formats strfmt.Registry) error {
+
+	if err := m.BflaStatus.ContextValidate(ctx, formats); err != nil {
+		if ve, ok := err.(*errors.Validation); ok {
+			return ve.ValidateName("bflaStatus")
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (m *APIEvent) contextValidateDestinationK8sObject(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.DestinationK8sObject != nil {
+		if err := m.DestinationK8sObject.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("destinationK8sObject")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (m *APIEvent) contextValidateMethod(ctx context.Context, formats strfmt.Registry) error {
 
 	if err := m.Method.ContextValidate(ctx, formats); err != nil {
@@ -192,6 +300,20 @@ func (m *APIEvent) contextValidateMethod(ctx context.Context, formats strfmt.Reg
 			return ve.ValidateName("method")
 		}
 		return err
+	}
+
+	return nil
+}
+
+func (m *APIEvent) contextValidateSourceK8sObject(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.SourceK8sObject != nil {
+		if err := m.SourceK8sObject.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("sourceK8sObject")
+			}
+			return err
+		}
 	}
 
 	return nil

@@ -82,6 +82,17 @@ func CreateAPIInfo(event *APIInfo) {
 	}
 }
 
+func GetAPIInventoryByName(name string) (*APIInfo, error) {
+	apiInfo := &APIInfo{}
+	tx := GetAPIInventoryTable()
+	tx = FilterIs(tx, nameColumnName, []string{name})
+	tx.First(apiInfo)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	return apiInfo, nil
+}
+
 func GetAPIInventoryAndTotal(params operations.GetAPIInventoryParams) ([]APIInfo, int64, error) {
 	var apiInventory []APIInfo
 	var count int64

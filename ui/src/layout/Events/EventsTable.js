@@ -47,15 +47,27 @@ const EventsTable = ({filters, refreshTimestamp}) => {
             width: 40
         },
         {
-            Header: 'Source',
+            Header: 'Source IP',
             id: "sourceIP",
             accessor: "sourceIP",
             width: 50
         },
         {
-            Header: 'Destination',
+            Header: 'Source name',
+            id: "sourceK8sObject.name",
+            accessor: "sourceK8sObject.name",
+            width: 50
+        },
+        {
+            Header: 'Destination IP',
             id: "destinationIP",
             accessor: "destinationIP",
+            width: 50
+        },
+        {
+            Header: 'Destination name',
+            id: "destinationK8sObject.name",
+            accessor: "destinationK8sObject.name",
             width: 50
         },
         {
@@ -96,6 +108,12 @@ const EventsTable = ({filters, refreshTimestamp}) => {
 
                 return !!typeItem ? typeItem.label : null;
             },
+            width: 30
+        },
+        {
+            Header: 'BFLA',
+            id: "bflaStatus",
+            accessor: "bflaStatus",
             width: 30
         }
     ], []);

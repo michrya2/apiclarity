@@ -35,11 +35,13 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/apiclarity/apiclarity/api/server/models"
+	"github.com/apiclarity/apiclarity/backend/pkg/bfladetector"
 	_config "github.com/apiclarity/apiclarity/backend/pkg/config"
 	_database "github.com/apiclarity/apiclarity/backend/pkg/database"
 	"github.com/apiclarity/apiclarity/backend/pkg/database/fake"
 	"github.com/apiclarity/apiclarity/backend/pkg/healthz"
 	"github.com/apiclarity/apiclarity/backend/pkg/k8smonitor"
+	"github.com/apiclarity/apiclarity/backend/pkg/k8straceannotator"
 	"github.com/apiclarity/apiclarity/backend/pkg/rest"
 	"github.com/apiclarity/apiclarity/backend/pkg/traces"
 	_spec "github.com/apiclarity/speculator/pkg/spec"
@@ -53,9 +55,10 @@ type Backend struct {
 	stateBackupFileName string
 	monitor             *k8smonitor.Monitor
 	apiInventoryLock    sync.RWMutex
+	telemetryCh         <-chan *k8straceannotator.K8SAnnotatedK8STelemetry
 }
 
-func CreateBackend(config *_config.Config, monitor *k8smonitor.Monitor) *Backend {
+func CreateBackend(config *_config.Config, monitor *k8smonitor.Monitor, telemetryCh <-chan *k8straceannotator.K8SAnnotatedK8STelemetry) *Backend {
 	speculator, err := _speculator.DecodeState(config.StateBackupFileName, config.SpeculatorConfig)
 	if err != nil {
 		log.Infof("No speculator state to decode, creating new: %v", err)
@@ -68,6 +71,7 @@ func CreateBackend(config *_config.Config, monitor *k8smonitor.Monitor) *Backend
 		stateBackupInterval: time.Second * time.Duration(config.StateBackupIntervalSec),
 		stateBackupFileName: config.StateBackupFileName,
 		monitor:             monitor,
+		telemetryCh:         telemetryCh,
 	}
 }
 
@@ -90,10 +94,14 @@ func Run() {
 	defer globalCancel()
 
 	log.Info("APIClarity backend is running")
+	clientset, err := k8smonitor.CreateK8sClientset()
+	if err != nil {
+		log.Fatalf("failed to create K8s clientset: %v", err)
+	}
 
 	var monitor *k8smonitor.Monitor
 	if !viper.GetBool(_database.FakeTracesEnvVar) && !viper.GetBool(_database.FakeDataEnvVar) {
-		monitor, err = k8smonitor.CreateMonitor()
+		monitor, err = k8smonitor.CreateMonitor(clientset)
 		if err != nil {
 			log.Errorf("Failed to create a monitor: %v", err)
 			return
@@ -104,9 +112,87 @@ func Run() {
 		go fake.CreateFakeData()
 	}
 
-	backend := CreateBackend(config, monitor)
+	tracesCh := make(chan *_spec.SCNTelemetry)
+	defer close(tracesCh)
+	k8sAnnotatedTrace1 := make(chan *k8straceannotator.K8SAnnotatedK8STelemetry)
+	defer close(k8sAnnotatedTrace1)
+	k8sAnnotatedTrace2 := make(chan *k8straceannotator.K8SAnnotatedK8STelemetry)
+	defer close(k8sAnnotatedTrace2)
 
-	tracesServer := traces.CreateHTTPTracesServer(config.HTTPTracesPort, backend.handleHTTPTrace)
+	backend := CreateBackend(config, monitor, k8sAnnotatedTrace1)
+	backend.Run(globalCtx)
+	k8sAnnorator, err := k8straceannotator.New(globalCtx, clientset)
+	if err != nil {
+		log.Fatal(err)
+	}
+	k8sAnnotatedTraceCh := k8sAnnorator.Run(globalCtx, tracesCh)
+
+	go func() {
+		for {
+			select {
+			case trace := <-k8sAnnotatedTraceCh:
+				log.Infof("Fan out annotated trace %q", trace.RequestId)
+				k8sAnnotatedTrace1 <- trace
+				k8sAnnotatedTrace2 <- trace
+			case <-globalCtx.Done():
+				return
+			}
+		}
+	}()
+	repo := _database.NewAuthZModelRepository(_database.DB)
+	const NrOfTracesToLearn = 200
+	// 95% -> service1
+	// 5% -> service2
+
+	//TODO Improve UI
+	//   -> Icons for status
+	//   -> Reorder the columns
+	//   -> Add filter ability for new columns
+	//TODO Rename KUBERNETES SOURCE OBJECT and KUBERNETES DESTINATION OBJECT to Source and destination
+	//   -> Add Object kind to description
+	//   -> Add BFLA description (describe what is the issue)
+	//TODO Feedback from user
+	//   -> Learn by asking the user to Approve or Deny events
+	//   ->
+	// ...
+	// - Smarter way to build the model (traces per request rather than pet namespace)
+	// - Check how management creates connection telemetries and what is a workload
+	//TODO Authz model visualization and edit
+	//TODO Visualisation model
+	bflaDetector, err := bfladetector.New(globalCtx, repo, NrOfTracesToLearn, _database.BFLAOpenAPIProvider{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	suspiciousTracesCh := bflaDetector.Run(globalCtx, k8sAnnotatedTrace2)
+	go func() {
+		for {
+			select {
+			case trace, ok := <-suspiciousTracesCh:
+				if !ok {
+					return
+				}
+				code, err := strconv.Atoi(trace.SCNTResponse.StatusCode)
+				//srcIp, _ := getHostname(trace.Source.Address)
+				//dstIp, _ := getHostname(trace.Destination.Address)
+				if err == nil && (200 > code || code > 299) {
+					err = _database.UpdateAPIEventBFLAStatus(trace.RequestId, models.BFLAStatusSUSPICIOUSSRCDENIED)
+				} else {
+					err = _database.UpdateAPIEventBFLAStatus(trace.RequestId, models.BFLAStatusSUSPICIOUSSRCALLOWED)
+				}
+				if err != nil {
+					log.Errorf("unable to update the database record with bfla status: %s", err)
+				}
+			case <-globalCtx.Done():
+				return
+			}
+		}
+	}()
+
+	tracesServer := traces.CreateHTTPTracesServer(config.HTTPTracesPort, func(trace *_spec.SCNTelemetry) error {
+		tracesCh <- trace
+		return nil
+	})
 	tracesServer.Start(errChan)
 	defer tracesServer.Stop()
 
@@ -181,7 +267,26 @@ func convertSpecDiffToEventDiff(diff *_spec.APIDiff) (originalRet, modifiedRet [
 	return originalRet, modifiedRet, nil
 }
 
-func (b *Backend) handleHTTPTrace(trace *_spec.SCNTelemetry) error {
+func (b *Backend) Run(ctx context.Context) {
+	go func() {
+		for {
+			select {
+			case trace, ok := <-b.telemetryCh:
+				if !ok {
+					return
+				}
+				log.Infof("Backend handlet trace: %q", trace.RequestId)
+				if err := b.handleHTTPTrace(trace); err != nil {
+					log.Errorf("Failed to handle trace. err=%v", err)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
+func (b *Backend) handleHTTPTrace(trace *k8straceannotator.K8SAnnotatedK8STelemetry) error {
 	var reconstructedDiff *_spec.APIDiff
 	var providedDiff *_spec.APIDiff
 	var err error
@@ -198,7 +303,7 @@ func (b *Backend) handleHTTPTrace(trace *_spec.SCNTelemetry) error {
 		return fmt.Errorf("failed to get hostname from host: %v", err)
 	}
 
-	destInfo, err := _speculator.GetAddressInfoFromAddress(trace.DestinationAddress)
+	destInfo, err := _speculator.GetAddressInfoFromAddress(trace.Destination.Address)
 	if err != nil {
 		return fmt.Errorf("failed to get destination info: %v", err)
 	}
@@ -206,7 +311,7 @@ func (b *Backend) handleHTTPTrace(trace *_spec.SCNTelemetry) error {
 	if err != nil {
 		return fmt.Errorf("failed to convert destination port: %v", err)
 	}
-	srcInfo, err := _speculator.GetAddressInfoFromAddress(trace.SourceAddress)
+	srcInfo, err := _speculator.GetAddressInfoFromAddress(trace.Source.Address)
 	if err != nil {
 		return fmt.Errorf("failed to get source info: %v", err)
 	}
@@ -224,7 +329,7 @@ func (b *Backend) handleHTTPTrace(trace *_spec.SCNTelemetry) error {
 		apiInfo.Type = models.APITypeEXTERNAL
 	}
 
-	isNonAPI := isNonAPI(trace)
+	isNonAPI := isNonAPI(trace.OriginalTrace)
 	// Don't link non APIs to an API in the inventory
 	if !isNonAPI {
 		// lock the API inventory to avoid creating API entries twice on trace handling races
@@ -240,18 +345,18 @@ func (b *Backend) handleHTTPTrace(trace *_spec.SCNTelemetry) error {
 		// Handle trace telemetry by Speculator
 		specKey := _speculator.GetSpecKey(trace.SCNTRequest.Host, destInfo.Port)
 		if b.speculator.HasProvidedSpec(specKey) {
-			providedDiff, err = b.speculator.DiffTelemetry(trace, _spec.DiffSourceProvided)
+			providedDiff, err = b.speculator.DiffTelemetry(trace.OriginalTrace, _spec.DiffSourceProvided)
 			if err != nil {
 				return fmt.Errorf("failed to diff telemetry against provided spec: %v", err)
 			}
 		}
 		if b.speculator.HasApprovedSpec(specKey) {
-			reconstructedDiff, err = b.speculator.DiffTelemetry(trace, _spec.DiffSourceReconstructed)
+			reconstructedDiff, err = b.speculator.DiffTelemetry(trace.OriginalTrace, _spec.DiffSourceReconstructed)
 			if err != nil {
 				return fmt.Errorf("failed to diff telemetry against approved spec: %v", err)
 			}
 		} else {
-			err := b.speculator.LearnTelemetry(trace)
+			err := b.speculator.LearnTelemetry(trace.OriginalTrace)
 			if err != nil {
 				return fmt.Errorf("failed to learn telemetry: %v", err)
 			}
@@ -267,18 +372,21 @@ func (b *Backend) handleHTTPTrace(trace *_spec.SCNTelemetry) error {
 	path, query := _spec.GetPathAndQuery(trace.SCNTRequest.Path)
 
 	event := &_database.APIEvent{
-		APIInfoID:       apiInfo.ID,
-		Time:            strfmt.DateTime(time.Now().UTC()),
-		Method:          models.HTTPMethod(trace.SCNTRequest.Method),
-		Path:            path,
-		Query:           query,
-		StatusCode:      int64(statusCode),
-		SourceIP:        srcInfo.IP,
-		DestinationIP:   destInfo.IP,
-		DestinationPort: int64(destPort),
-		HostSpecName:    trace.SCNTRequest.Host,
-		IsNonAPI:        isNonAPI,
-		EventType:       apiInfo.Type,
+		APIInfoID:            apiInfo.ID,
+		RequestID:            trace.RequestId,
+		Time:                 strfmt.DateTime(time.Now().UTC()),
+		Method:               models.HTTPMethod(trace.SCNTRequest.Method),
+		Path:                 path,
+		Query:                query,
+		StatusCode:           int64(statusCode),
+		SourceIP:             srcInfo.IP,
+		DestinationIP:        destInfo.IP,
+		DestinationPort:      int64(destPort),
+		HostSpecName:         trace.SCNTRequest.Host,
+		IsNonAPI:             isNonAPI,
+		EventType:            apiInfo.Type,
+		DestinationK8sObject: (*_database.K8sObjectRef)(trace.Destination.K8SObject),
+		SourceK8sObject:      (*_database.K8sObjectRef)(trace.Source.K8SObject),
 	}
 
 	reconstructedDiffType := models.DiffTypeNODIFF

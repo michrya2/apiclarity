@@ -6,7 +6,8 @@ import Tag from 'components/Tag';
 import Button from 'components/Button';
 
 const Details = ({data}) => {
-    const {method, statusCode, path, query, sourceIP, destinationIP, destinationPort, hostSpecName, apiInfoId, apiType} = data;
+    const {method, statusCode, path, query, sourceIP, destinationIP, destinationPort, hostSpecName, apiInfoId, apiType,
+        sourceK8sObject, destinationK8sObject, bflaStatus} = data;
 
     const history = useHistory();
     
@@ -22,6 +23,15 @@ const Details = ({data}) => {
                 <TitleValueDisplay title="Source">{sourceIP}</TitleValueDisplay>
                 <TitleValueDisplay title="Destination">{destinationIP}</TitleValueDisplay>
                 <TitleValueDisplay title="Destination port">{destinationPort}</TitleValueDisplay>
+            </TitleValueDisplayRow>
+            <TitleValueDisplayRow>
+                <TitleValueDisplay title="Source Name">{sourceK8sObject.name}</TitleValueDisplay>
+                <TitleValueDisplay title="Destination Name">{destinationK8sObject.name}</TitleValueDisplay>
+                <TitleValueDisplay title="BFLA">{bflaStatus}</TitleValueDisplay>
+            </TitleValueDisplayRow>
+            <TitleValueDisplayRow>
+                <TitleValueDisplay title="Source Kind">{sourceK8sObject.kind}</TitleValueDisplay>
+                <TitleValueDisplay title="Destination Kind">{destinationK8sObject.kind}</TitleValueDisplay>
             </TitleValueDisplayRow>
             <TitleValueDisplayRow>
                 <TitleValueDisplay title="spec" className="spec-display">

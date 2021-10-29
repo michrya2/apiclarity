@@ -16,7 +16,12 @@
 package database
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"gorm.io/gorm/schema"
+	"time"
 
 	"github.com/go-openapi/strfmt"
 	log "github.com/sirupsen/logrus"
@@ -51,13 +56,16 @@ const (
 	apiInfoIDColumnName            = "api_info_id"
 	isNonAPIColumnName             = "is_non_api"
 	eventTypeColumnName            = "event_type"
+	bflaStatusColumnName           = "bfla_status"
+	requestIdColumnName            = "request_id"
 )
 
 var specDiffColumns = []string{newReconstructedSpecColumnName, oldReconstructedSpecColumnName, newProvidedSpecColumnName, oldProvidedSpecColumnName}
 
 type APIEvent struct {
 	// will be populated after inserting to DB
-	ID uint `gorm:"primarykey" faker:"-"`
+	ID        uint   `gorm:"primarykey" faker:"-"`
+	RequestID string `gorm:"index:request_id,unique"`
 	// CreatedAt time.Time
 	// UpdatedAt time.Time
 
@@ -92,6 +100,60 @@ type APIEvent struct {
 	APIInfoID uint `json:"apiInfoId,omitempty" gorm:"column:api_info_id" faker:"-"`
 	// We'll not always have a corresponding API info (e.g. non-API resources) so the type is needed also for the event
 	EventType models.APIType `json:"eventType,omitempty" gorm:"column:event_type" faker:"oneof: INTERNAL, EXTERNAL"`
+
+	DestinationK8sObject *K8sObjectRef     `json:"destinationK8sObject,omitempty"`
+	SourceK8sObject      *K8sObjectRef     `json:"sourceK8sObject,omitempty"`
+	BFLAStatus           models.BFLAStatus `json:"bflaStatus" gorm:"column:bfla_status"`
+}
+
+type K8sObjectRef struct {
+	APIVersion string `json:"apiVersion,omitempty"`
+	Kind       string `json:"kind,omitempty"`
+	Name       string `json:"name,omitempty"`
+	Namespace  string `json:"namespace,omitempty"`
+	UID        string `json:"uid,omitempty"`
+}
+
+// GormDataType gorm common data type
+func (K8sObjectRef) GormDataType() string { return "json" }
+
+func (K8sObjectRef) GormDBDataType(db *gorm.DB, field *schema.Field) string {
+	switch db.Dialector.Name() {
+	case "sqlite":
+		return "JSON"
+	case "mysql":
+		return "JSON"
+	case "postgres":
+		return "JSONB"
+	}
+	return ""
+}
+
+func (s *K8sObjectRef) Value() (driver.Value, error) {
+	if s == nil {
+		return nil, nil
+	}
+	return json.Marshal(s)
+}
+
+func (s *K8sObjectRef) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+	var buff []byte
+	switch v := value.(type) {
+	case []byte:
+		buff = v
+	case string:
+		buff = []byte(v)
+	default:
+		return fmt.Errorf("failed to unmarshal JSONB value: %v", value)
+	}
+
+	result := K8sObjectRef{}
+	err := json.Unmarshal(buff, &result)
+	*s = result
+	return err
 }
 
 type HostGroup struct {
@@ -164,6 +226,9 @@ func APIEventFromDB(event *APIEvent) *models.APIEvent {
 		SpecDiffType:             &event.SpecDiffType,
 		StatusCode:               event.StatusCode,
 		Time:                     event.Time,
+		DestinationK8sObject:     (*models.K8sObjectRef)(event.DestinationK8sObject),
+		SourceK8sObject:          (*models.K8sObjectRef)(event.SourceK8sObject),
+		BflaStatus:               event.BFLAStatus,
 	}
 }
 
@@ -172,11 +237,32 @@ func GetAPIEventsTable() *gorm.DB {
 }
 
 func CreateAPIEvent(event *APIEvent) {
-	if result := GetAPIEventsTable().Create(event); result.Error != nil {
+	if result := GetAPIEventsTable().Save(event); result.Error != nil {
 		log.Errorf("Failed to create event: %v", result.Error)
 	} else {
 		log.Infof("Event created %+v", event)
 	}
+}
+
+func UpdateAPIEventBFLAStatus(requestId string, bflaStatus models.BFLAStatus) error {
+	retries := 5
+	for retries != 0 {
+		t := GetAPIEventsTable()
+		t = FilterIsString(t, requestIdColumnName, requestId)
+		t.UpdateColumn(bflaStatusColumnName, bflaStatus)
+		if t.Error != nil {
+			return t.Error
+		}
+		if t.RowsAffected == 0 {
+			log.Warn("no rows affected, trace not created yet, waiting: 2s")
+			time.Sleep(2 * time.Second)
+			retries--
+			continue
+		}
+		return nil
+	}
+
+	return errors.New("unable to update trace with BFLA status after 5 tries")
 }
 
 func GetAPIEventsAndTotal(params operations.GetAPIEventsParams) ([]APIEvent, int64, error) {
@@ -193,7 +279,6 @@ func GetAPIEventsAndTotal(params operations.GetAPIEventsParams) ([]APIEvent, int
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create sort order: %v", err)
 	}
-
 	// get specific page ordered items with the current filters
 	if err := tx.Scopes(Paginate(params.Page, params.PageSize)).
 		Order(sortOrder).

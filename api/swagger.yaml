@@ -35,6 +35,12 @@ definitions:
         type: 'string'
       destinationPort:
         type: 'integer'
+      destinationK8sObject:
+        $ref: '#/definitions/K8sObjectRef'
+      sourceK8sObject:
+        $ref: '#/definitions/K8sObjectRef'
+      bflaStatus:
+        $ref: '#/definitions/BFLAStatus'
       hasReconstructedSpecDiff:
         type: 'boolean'
         default: false
@@ -306,6 +312,26 @@ definitions:
         type: 'array'
         items:
           $ref: '#/definitions/ReviewPathItem'
+
+  K8sObjectRef:
+    type: object
+    properties:
+      apiVersion:
+        type: string
+      kind:
+        type: string
+      namespace:
+        type: string
+      name:
+        type: string
+      uid:
+        type: string
+  BFLAStatus:
+    type: string
+    enum:
+      - NONE
+      - SUSPICIOUS_SRC_DENIED
+      - SUSPICIOUS_SRC_ALLOWED
 
 paths:
   /apiEvents:
