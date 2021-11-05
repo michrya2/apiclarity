@@ -141,24 +141,6 @@ func Run() {
 	}()
 	repo := _database.NewAuthZModelRepository(_database.DB)
 	const NrOfTracesToLearn = 200
-	// 95% -> service1
-	// 5% -> service2
-
-	//TODO Improve UI
-	//   -> Icons for status
-	//   -> Reorder the columns
-	//   -> Add filter ability for new columns
-	//TODO Rename KUBERNETES SOURCE OBJECT and KUBERNETES DESTINATION OBJECT to Source and destination
-	//   -> Add Object kind to description
-	//   -> Add BFLA description (describe what is the issue)
-	//TODO Feedback from user
-	//   -> Learn by asking the user to Approve or Deny events
-	//   ->
-	// ...
-	// - Smarter way to build the model (traces per request rather than pet namespace)
-	// - Check how management creates connection telemetries and what is a workload
-	//TODO Authz model visualization and edit
-	//TODO Visualisation model
 	bflaDetector, err := bfladetector.New(globalCtx, repo, NrOfTracesToLearn, _database.BFLAOpenAPIProvider{})
 	if err != nil {
 		log.Fatal(err)
