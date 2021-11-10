@@ -1,6 +1,7 @@
 import React from 'react';
 import Filter, { OPERATORS, METHOD_ITEMS, formatFiltersToQueryParams } from 'components/Filter';
 import { SPEC_DIFF_TYPES_MAP } from 'components/SpecDiffIcon';
+import { BFLA_STATUS_TYPES_MAP } from 'components/BflaStatusIcon';
 
 export {
     formatFiltersToQueryParams
@@ -28,11 +29,21 @@ const FILTERS_MAP = {
         {...OPERATORS.gte},
         {...OPERATORS.lte},
     ]},
-    sourceIP: {value: "sourceIP", label: "Source", operators: [
+    "sourceK8sObject.name": {value: "sourceK8sObject.name", label: "Source Name", operators: [
+        {...OPERATORS.is, valueItems: [], creatable: true},
+        {...OPERATORS.isNot, valueItems: [], creatable: true},
+        {...OPERATORS.contains, valueItems: [], creatable: true}
+    ]},
+    sourceIP: {value: "sourceIP", label: "Source IP", operators: [
         {...OPERATORS.is, valueItems: [], creatable: true},
         {...OPERATORS.isNot, valueItems: [], creatable: true}
     ]},
-    destinationIP: {value: "destinationIP", label: "Destination", operators: [
+    "destinationK8sObject.name": {value: "destinationK8sObject.name", label: "Destination Name", operators: [
+        {...OPERATORS.is, valueItems: [], creatable: true},
+        {...OPERATORS.isNot, valueItems: [], creatable: true},
+        {...OPERATORS.contains, valueItems: [], creatable: true}
+    ]},
+    destinationIP: {value: "destinationIP", label: "Destination IP", operators: [
         {...OPERATORS.is, valueItems: [], creatable: true},
         {...OPERATORS.isNot, valueItems: [], creatable: true}
     ]},
@@ -53,7 +64,10 @@ const FILTERS_MAP = {
     specDiffType: {value: "specDiffType", label: "Spec diff type", operators: [
         {...OPERATORS.is, valueItems: Object.values(SPEC_DIFF_TYPES_MAP), creatable: false}
     ]},
-}
+    bflaStatus: {value: "bflaStatus", label: "BFLA", operators: [
+        {...OPERATORS.is, valueItems: Object.values(BFLA_STATUS_TYPES_MAP) , creatable: false}
+    ]}
+};
 
 const GeneralFilter = props => (<Filter {...props} filtersMap={FILTERS_MAP} />);
 
