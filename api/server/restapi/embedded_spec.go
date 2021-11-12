@@ -630,6 +630,29 @@ func init() {
         }
       }
     },
+    "/authorizationModel/{namespace}": {
+      "get": {
+        "parameters": [
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/AuthorizationModel"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/UnknownError"
+          }
+        }
+      }
+    },
     "/dashboard/apiUsage": {
       "get": {
         "summary": "Get API usage",
@@ -923,6 +946,78 @@ func init() {
           "items": {
             "$ref": "#/definitions/ReviewPathItem"
           }
+        }
+      }
+    },
+    "AuthorizationModel": {
+      "properties": {
+        "first_trace_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "id": {
+          "type": "integer"
+        },
+        "learning_ended_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "services": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/AuthorizationModelService"
+          }
+        },
+        "traces_processed": {
+          "type": "integer"
+        }
+      }
+    },
+    "AuthorizationModelAudience": {
+      "type": "object",
+      "properties": {
+        "k8s_object": {
+          "$ref": "#/definitions/K8sObjectRef"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "AuthorizationModelOperation": {
+      "type": "object",
+      "properties": {
+        "audience": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AuthorizationModelAudience"
+          }
+        },
+        "method": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      }
+    },
+    "AuthorizationModelService": {
+      "type": "object",
+      "properties": {
+        "k8s_object": {
+          "$ref": "#/definitions/K8sObjectRef"
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AuthorizationModelOperation"
+          }
+        },
+        "service_name": {
+          "type": "string"
         }
       }
     },
@@ -2648,6 +2743,32 @@ func init() {
         }
       }
     },
+    "/authorizationModel/{namespace}": {
+      "get": {
+        "parameters": [
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/AuthorizationModel"
+            }
+          },
+          "default": {
+            "description": "unknown error",
+            "schema": {
+              "$ref": "#/definitions/ApiResponse"
+            }
+          }
+        }
+      }
+    },
     "/dashboard/apiUsage": {
       "get": {
         "summary": "Get API usage",
@@ -2960,6 +3081,78 @@ func init() {
           "items": {
             "$ref": "#/definitions/ReviewPathItem"
           }
+        }
+      }
+    },
+    "AuthorizationModel": {
+      "properties": {
+        "first_trace_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "id": {
+          "type": "integer"
+        },
+        "learning_ended_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "services": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/AuthorizationModelService"
+          }
+        },
+        "traces_processed": {
+          "type": "integer"
+        }
+      }
+    },
+    "AuthorizationModelAudience": {
+      "type": "object",
+      "properties": {
+        "k8s_object": {
+          "$ref": "#/definitions/K8sObjectRef"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "AuthorizationModelOperation": {
+      "type": "object",
+      "properties": {
+        "audience": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AuthorizationModelAudience"
+          }
+        },
+        "method": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      }
+    },
+    "AuthorizationModelService": {
+      "type": "object",
+      "properties": {
+        "k8s_object": {
+          "$ref": "#/definitions/K8sObjectRef"
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AuthorizationModelOperation"
+          }
+        },
+        "service_name": {
+          "type": "string"
         }
       }
     },

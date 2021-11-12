@@ -313,25 +313,77 @@ definitions:
         items:
           $ref: '#/definitions/ReviewPathItem'
 
-  K8sObjectRef:
-    type: object
-    properties:
-      apiVersion:
-        type: string
-      kind:
-        type: string
-      namespace:
-        type: string
-      name:
-        type: string
-      uid:
-        type: string
   BFLAStatus:
     type: string
     enum:
       - NONE
       - SUSPICIOUS_SRC_DENIED
       - SUSPICIOUS_SRC_ALLOWED
+
+  K8sObjectRef:
+    type: object
+    properties:
+      uid:
+        type: string
+      kind:
+        type: string
+      name:
+        type: string
+      namespace:
+        type: string
+      apiVersion:
+        type: string
+
+  AuthorizationModel:
+    properties:
+      id:
+        type: integer
+      first_trace_at:
+        type: string
+        format: "date-time"
+      learning_ended_at:
+        type: string
+        format: "date-time"
+      namespace:
+        type: string
+      traces_processed:
+        type: integer
+      services:
+        type: object
+        additionalProperties:
+          $ref: '#/definitions/AuthorizationModelService'
+
+  AuthorizationModelAudience:
+    type: object
+    properties:
+      name:
+        type: string
+      k8s_object:
+        $ref: '#/definitions/K8sObjectRef'
+
+  AuthorizationModelOperation:
+      type: object
+      properties:
+        path:
+          type: string
+        method:
+          type: string
+        audience:
+          type: array
+          items:
+            $ref: '#/definitions/AuthorizationModelAudience'
+
+  AuthorizationModelService:
+    type: object
+    properties:
+      k8s_object:
+        $ref: '#/definitions/K8sObjectRef'
+      operations:
+        type: array
+        items:
+          $ref: '#/definitions/AuthorizationModelOperation'
+      service_name:
+        type: string
 
 paths:
   /apiEvents:
@@ -684,6 +736,21 @@ paths:
           description: 'Success'
           schema:
             $ref: '#/responses/Success'
+        default:
+          $ref: '#/responses/UnknownError'
+
+  /authorizationModel/{namespace}:
+    get:
+      parameters:
+        - in: path
+          type: string
+          required: true
+          name: namespace
+      responses:
+        '200':
+          description: 'Success'
+          schema:
+            $ref: '#/definitions/AuthorizationModel'
         default:
           $ref: '#/responses/UnknownError'
 

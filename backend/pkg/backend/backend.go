@@ -139,9 +139,9 @@ func Run() {
 			}
 		}
 	}()
-	repo := _database.NewAuthZModelRepository(_database.DB)
+	authzmodelRepo := _database.NewAuthZModelRepository(_database.DB)
 	const NrOfTracesToLearn = 200
-	bflaDetector, err := bfladetector.New(globalCtx, repo, NrOfTracesToLearn, _database.BFLAOpenAPIProvider{})
+	bflaDetector, err := bfladetector.New(globalCtx, authzmodelRepo, NrOfTracesToLearn, _database.BFLAOpenAPIProvider{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -178,7 +178,7 @@ func Run() {
 	tracesServer.Start(errChan)
 	defer tracesServer.Stop()
 
-	restServer, err := rest.CreateRESTServer(config.BackendRestPort, backend.speculator)
+	restServer, err := rest.CreateRESTServer(config.BackendRestPort, backend.speculator, authzmodelRepo)
 	if err != nil {
 		log.Fatalf("Failed to create REST server: %v", err)
 	}

@@ -2,6 +2,7 @@ package bfladetector
 
 import (
 	"github.com/apiclarity/apiclarity/api/server/models"
+	"github.com/go-openapi/strfmt"
 	"time"
 )
 
@@ -51,4 +52,36 @@ type NamespaceAuthorizationModel struct {
 	Namespace       string                         `json:"namespace"`
 	TracesProcessed int                            `json:"traces_processed"`
 	Services        map[string]*AuthorizationModel `json:"services"`
+}
+
+func (n *NamespaceAuthorizationModel) ToModel() *models.AuthorizationModel {
+	services := map[string]models.AuthorizationModelService{}
+	for svcName, svc := range n.Services {
+		ams := models.AuthorizationModelService{
+			K8sObject:   svc.K8sObject,
+			ServiceName: svc.ServiceName,
+		}
+		for _, op := range svc.Operations {
+			operation := &models.AuthorizationModelOperation{
+				Method: op.Method,
+				Path:   op.Path,
+			}
+			for _, audience := range op.Audience {
+				operation.Audience = append(operation.Audience, &models.AuthorizationModelAudience{
+					K8sObject: audience.K8sObject,
+					Name:      audience.Name,
+				})
+			}
+			ams.Operations = append(ams.Operations, operation)
+		}
+		services[svcName] = ams
+	}
+	return &models.AuthorizationModel{
+		ID:              int64(n.ID),
+		FirstTraceAt:    strfmt.DateTime(n.FirstTraceAt),
+		LearningEndedAt: strfmt.DateTime(n.LearningEndedAt),
+		Namespace:       n.Namespace,
+		TracesProcessed: int64(n.TracesProcessed),
+		Services:        services,
+	}
 }

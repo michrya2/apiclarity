@@ -17,8 +17,7 @@ package rest
 
 import (
 	"fmt"
-	"github.com/apiclarity/apiclarity/backend/pkg/k8straceannotator"
-
+	"github.com/apiclarity/apiclarity/backend/pkg/bfladetector"
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/runtime/middleware"
 	log "github.com/sirupsen/logrus"
@@ -30,14 +29,15 @@ import (
 )
 
 type Server struct {
-	server     *restapi.Server
-	speculator *_speculator.Speculator
-	k8sclient  k8straceannotator.K8sClient
+	server         *restapi.Server
+	speculator     *_speculator.Speculator
+	authzmodelRepo bfladetector.AuthzModelRepository
 }
 
-func CreateRESTServer(port int, speculator *_speculator.Speculator) (*Server, error) {
+func CreateRESTServer(port int, speculator *_speculator.Speculator, authzmodelRepo bfladetector.AuthzModelRepository) (*Server, error) {
 	s := &Server{
-		speculator: speculator,
+		speculator:     speculator,
+		authzmodelRepo: authzmodelRepo,
 	}
 
 	swaggerSpec, err := loads.Embedded(restapi.SwaggerJSON, restapi.FlatSwaggerJSON)
@@ -118,6 +118,8 @@ func CreateRESTServer(port int, speculator *_speculator.Speculator) (*Server, er
 	api.DeleteAPIInventoryAPIIDSpecsReconstructedSpecHandler = operations.DeleteAPIInventoryAPIIDSpecsReconstructedSpecHandlerFunc(func(params operations.DeleteAPIInventoryAPIIDSpecsReconstructedSpecParams) middleware.Responder {
 		return s.DeleteAPIInventoryAPIIDSpecsReconstructedSpec(params)
 	})
+
+	api.GetAuthorizationModelNamespaceHandler = operations.GetAuthorizationModelNamespaceHandlerFunc(s.GetAuthorizationModelNamespace)
 
 	server := restapi.NewServer(api)
 

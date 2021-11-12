@@ -78,6 +78,9 @@ func NewAPIClarityAPIsAPI(spec *loads.Document) *APIClarityAPIsAPI {
 		GetAPIUsageHitCountHandler: GetAPIUsageHitCountHandlerFunc(func(params GetAPIUsageHitCountParams) middleware.Responder {
 			return middleware.NotImplemented("operation GetAPIUsageHitCount has not yet been implemented")
 		}),
+		GetAuthorizationModelNamespaceHandler: GetAuthorizationModelNamespaceHandlerFunc(func(params GetAuthorizationModelNamespaceParams) middleware.Responder {
+			return middleware.NotImplemented("operation GetAuthorizationModelNamespace has not yet been implemented")
+		}),
 		GetDashboardAPIUsageHandler: GetDashboardAPIUsageHandlerFunc(func(params GetDashboardAPIUsageParams) middleware.Responder {
 			return middleware.NotImplemented("operation GetDashboardAPIUsage has not yet been implemented")
 		}),
@@ -153,6 +156,8 @@ type APIClarityAPIsAPI struct {
 	GetAPIInventoryAPIIDSuggestedReviewHandler GetAPIInventoryAPIIDSuggestedReviewHandler
 	// GetAPIUsageHitCountHandler sets the operation handler for the get API usage hit count operation
 	GetAPIUsageHitCountHandler GetAPIUsageHitCountHandler
+	// GetAuthorizationModelNamespaceHandler sets the operation handler for the get authorization model namespace operation
+	GetAuthorizationModelNamespaceHandler GetAuthorizationModelNamespaceHandler
 	// GetDashboardAPIUsageHandler sets the operation handler for the get dashboard API usage operation
 	GetDashboardAPIUsageHandler GetDashboardAPIUsageHandler
 	// GetDashboardAPIUsageLatestDiffsHandler sets the operation handler for the get dashboard API usage latest diffs operation
@@ -275,6 +280,9 @@ func (o *APIClarityAPIsAPI) Validate() error {
 	}
 	if o.GetAPIUsageHitCountHandler == nil {
 		unregistered = append(unregistered, "GetAPIUsageHitCountHandler")
+	}
+	if o.GetAuthorizationModelNamespaceHandler == nil {
+		unregistered = append(unregistered, "GetAuthorizationModelNamespaceHandler")
 	}
 	if o.GetDashboardAPIUsageHandler == nil {
 		unregistered = append(unregistered, "GetDashboardAPIUsageHandler")
@@ -427,6 +435,10 @@ func (o *APIClarityAPIsAPI) initHandlerCache() {
 		o.handlers["GET"] = make(map[string]http.Handler)
 	}
 	o.handlers["GET"]["/apiUsage/hitCount"] = NewGetAPIUsageHitCount(o.context, o.GetAPIUsageHitCountHandler)
+	if o.handlers["GET"] == nil {
+		o.handlers["GET"] = make(map[string]http.Handler)
+	}
+	o.handlers["GET"]["/authorizationModel/{namespace}"] = NewGetAuthorizationModelNamespace(o.context, o.GetAuthorizationModelNamespaceHandler)
 	if o.handlers["GET"] == nil {
 		o.handlers["GET"] = make(map[string]http.Handler)
 	}
