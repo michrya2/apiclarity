@@ -368,6 +368,12 @@ paths:
         - $ref: '#/parameters/specStartsWithFilter'
         - $ref: '#/parameters/specEndsWithFilter'
         - $ref: '#/parameters/specContainsFilter'
+        - $ref: '#/parameters/destinationK8sObjectNameIsFilter'
+        - $ref: '#/parameters/destinationK8sObjectNameIsNotFilter'
+        - $ref: '#/parameters/sourceK8sObjectNameIsFilter'
+        - $ref: '#/parameters/sourceK8sObjectNameIsNotFilter'
+        - $ref: '#/parameters/bflaStatusIsFilter'
+        - $ref: '#/parameters/bflaStatusIsNotFilter'
       responses:
         '200':
           description: 'Success'
@@ -1014,6 +1020,54 @@ parameters:
     name: 'hasReconstructedSpec[is]'
     in: 'query'
     type: 'boolean'
+    required: false
+
+  sourceK8sObjectNameIsFilter:
+    name: 'sourceK8sObject.name[is]'
+    in: 'query'
+    type: 'array'
+    items:
+      type: 'string'
+    required: false
+
+  sourceK8sObjectNameIsNotFilter:
+    name: 'sourceK8sObject.name[isNot]'
+    in: 'query'
+    type: 'array'
+    items:
+      type: 'string'
+    required: false
+
+  destinationK8sObjectNameIsFilter:
+    name: 'destinationK8sObject.name[is]'
+    in: 'query'
+    type: 'array'
+    items:
+      type: 'string'
+    required: false
+
+  destinationK8sObjectNameIsNotFilter:
+    name: 'destinationK8sObject.name[isNot]'
+    in: 'query'
+    type: 'array'
+    items:
+      type: 'string'
+    required: false
+
+  bflaStatusIsFilter:
+    name: 'bflaStatus[is]'
+    in: 'query'
+    type: 'array'
+    items:
+      type: 'string'
+    required: false
+
+  bflaStatusIsNotFilter:
+    name: 'bflaStatus[isNot]'
+    in: 'query'
+    type: 'array'
+    items:
+      type: 'string'
     required: false
 
   apiId:

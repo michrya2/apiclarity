@@ -16,36 +16,42 @@ import (
 
 // GetAPIEventsURL generates an URL for the get API events operation
 type GetAPIEventsURL struct {
-	DestinationIPIsNot   []string
-	DestinationIPIs      []string
-	DestinationPortIsNot []string
-	DestinationPortIs    []string
-	EndTime              strfmt.DateTime
-	HasSpecDiffIs        *bool
-	MethodIs             []string
-	Page                 int64
-	PageSize             int64
-	PathContains         []string
-	PathEnd              *string
-	PathIsNot            []string
-	PathIs               []string
-	PathStart            *string
-	ShowNonAPI           bool
-	SortDir              *string
-	SortKey              string
-	SourceIPIsNot        []string
-	SourceIPIs           []string
-	SpecDiffTypeIs       []string
-	SpecContains         []string
-	SpecEnd              *string
-	SpecIsNot            []string
-	SpecIs               []string
-	SpecStart            *string
-	StartTime            strfmt.DateTime
-	StatusCodeGte        *string
-	StatusCodeIsNot      []string
-	StatusCodeIs         []string
-	StatusCodeLte        *string
+	BflaStatusIsNot               []string
+	BflaStatusIs                  []string
+	DestinationIPIsNot            []string
+	DestinationIPIs               []string
+	DestinationK8sObjectNameIsNot []string
+	DestinationK8sObjectNameIs    []string
+	DestinationPortIsNot          []string
+	DestinationPortIs             []string
+	EndTime                       strfmt.DateTime
+	HasSpecDiffIs                 *bool
+	MethodIs                      []string
+	Page                          int64
+	PageSize                      int64
+	PathContains                  []string
+	PathEnd                       *string
+	PathIsNot                     []string
+	PathIs                        []string
+	PathStart                     *string
+	ShowNonAPI                    bool
+	SortDir                       *string
+	SortKey                       string
+	SourceIPIsNot                 []string
+	SourceIPIs                    []string
+	SourceK8sObjectNameIsNot      []string
+	SourceK8sObjectNameIs         []string
+	SpecDiffTypeIs                []string
+	SpecContains                  []string
+	SpecEnd                       *string
+	SpecIsNot                     []string
+	SpecIs                        []string
+	SpecStart                     *string
+	StartTime                     strfmt.DateTime
+	StatusCodeGte                 *string
+	StatusCodeIsNot               []string
+	StatusCodeIs                  []string
+	StatusCodeLte                 *string
 
 	_basePath string
 	// avoid unkeyed usage
@@ -81,6 +87,40 @@ func (o *GetAPIEventsURL) Build() (*url.URL, error) {
 
 	qs := make(url.Values)
 
+	var bflaStatusIsNotIR []string
+	for _, bflaStatusIsNotI := range o.BflaStatusIsNot {
+		bflaStatusIsNotIS := bflaStatusIsNotI
+		if bflaStatusIsNotIS != "" {
+			bflaStatusIsNotIR = append(bflaStatusIsNotIR, bflaStatusIsNotIS)
+		}
+	}
+
+	bflaStatusIsNot := swag.JoinByFormat(bflaStatusIsNotIR, "")
+
+	if len(bflaStatusIsNot) > 0 {
+		qsv := bflaStatusIsNot[0]
+		if qsv != "" {
+			qs.Set("bflaStatus[isNot]", qsv)
+		}
+	}
+
+	var bflaStatusIsIR []string
+	for _, bflaStatusIsI := range o.BflaStatusIs {
+		bflaStatusIsIS := bflaStatusIsI
+		if bflaStatusIsIS != "" {
+			bflaStatusIsIR = append(bflaStatusIsIR, bflaStatusIsIS)
+		}
+	}
+
+	bflaStatusIs := swag.JoinByFormat(bflaStatusIsIR, "")
+
+	if len(bflaStatusIs) > 0 {
+		qsv := bflaStatusIs[0]
+		if qsv != "" {
+			qs.Set("bflaStatus[is]", qsv)
+		}
+	}
+
 	var destinationIPIsNotIR []string
 	for _, destinationIPIsNotI := range o.DestinationIPIsNot {
 		destinationIPIsNotIS := destinationIPIsNotI
@@ -112,6 +152,40 @@ func (o *GetAPIEventsURL) Build() (*url.URL, error) {
 		qsv := destinationIPIs[0]
 		if qsv != "" {
 			qs.Set("destinationIP[is]", qsv)
+		}
+	}
+
+	var destinationK8sObjectNameIsNotIR []string
+	for _, destinationK8sObjectNameIsNotI := range o.DestinationK8sObjectNameIsNot {
+		destinationK8sObjectNameIsNotIS := destinationK8sObjectNameIsNotI
+		if destinationK8sObjectNameIsNotIS != "" {
+			destinationK8sObjectNameIsNotIR = append(destinationK8sObjectNameIsNotIR, destinationK8sObjectNameIsNotIS)
+		}
+	}
+
+	destinationK8sObjectNameIsNot := swag.JoinByFormat(destinationK8sObjectNameIsNotIR, "")
+
+	if len(destinationK8sObjectNameIsNot) > 0 {
+		qsv := destinationK8sObjectNameIsNot[0]
+		if qsv != "" {
+			qs.Set("destinationK8sObject.name[isNot]", qsv)
+		}
+	}
+
+	var destinationK8sObjectNameIsIR []string
+	for _, destinationK8sObjectNameIsI := range o.DestinationK8sObjectNameIs {
+		destinationK8sObjectNameIsIS := destinationK8sObjectNameIsI
+		if destinationK8sObjectNameIsIS != "" {
+			destinationK8sObjectNameIsIR = append(destinationK8sObjectNameIsIR, destinationK8sObjectNameIsIS)
+		}
+	}
+
+	destinationK8sObjectNameIs := swag.JoinByFormat(destinationK8sObjectNameIsIR, "")
+
+	if len(destinationK8sObjectNameIs) > 0 {
+		qsv := destinationK8sObjectNameIs[0]
+		if qsv != "" {
+			qs.Set("destinationK8sObject.name[is]", qsv)
 		}
 	}
 
@@ -305,6 +379,40 @@ func (o *GetAPIEventsURL) Build() (*url.URL, error) {
 		qsv := sourceIPIs[0]
 		if qsv != "" {
 			qs.Set("sourceIP[is]", qsv)
+		}
+	}
+
+	var sourceK8sObjectNameIsNotIR []string
+	for _, sourceK8sObjectNameIsNotI := range o.SourceK8sObjectNameIsNot {
+		sourceK8sObjectNameIsNotIS := sourceK8sObjectNameIsNotI
+		if sourceK8sObjectNameIsNotIS != "" {
+			sourceK8sObjectNameIsNotIR = append(sourceK8sObjectNameIsNotIR, sourceK8sObjectNameIsNotIS)
+		}
+	}
+
+	sourceK8sObjectNameIsNot := swag.JoinByFormat(sourceK8sObjectNameIsNotIR, "")
+
+	if len(sourceK8sObjectNameIsNot) > 0 {
+		qsv := sourceK8sObjectNameIsNot[0]
+		if qsv != "" {
+			qs.Set("sourceK8sObject.name[isNot]", qsv)
+		}
+	}
+
+	var sourceK8sObjectNameIsIR []string
+	for _, sourceK8sObjectNameIsI := range o.SourceK8sObjectNameIs {
+		sourceK8sObjectNameIsIS := sourceK8sObjectNameIsI
+		if sourceK8sObjectNameIsIS != "" {
+			sourceK8sObjectNameIsIR = append(sourceK8sObjectNameIsIR, sourceK8sObjectNameIsIS)
+		}
+	}
+
+	sourceK8sObjectNameIs := swag.JoinByFormat(sourceK8sObjectNameIsIR, "")
+
+	if len(sourceK8sObjectNameIs) > 0 {
+		qsv := sourceK8sObjectNameIs[0]
+		if qsv != "" {
+			qs.Set("sourceK8sObject.name[is]", qsv)
 		}
 	}
 

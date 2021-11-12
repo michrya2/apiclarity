@@ -127,6 +127,24 @@ func init() {
           },
           {
             "$ref": "#/parameters/specContainsFilter"
+          },
+          {
+            "$ref": "#/parameters/destinationK8sObjectNameIsFilter"
+          },
+          {
+            "$ref": "#/parameters/destinationK8sObjectNameIsNotFilter"
+          },
+          {
+            "$ref": "#/parameters/sourceK8sObjectNameIsFilter"
+          },
+          {
+            "$ref": "#/parameters/sourceK8sObjectNameIsNotFilter"
+          },
+          {
+            "$ref": "#/parameters/bflaStatusIsFilter"
+          },
+          {
+            "$ref": "#/parameters/bflaStatusIsNotFilter"
           }
         ],
         "responses": {
@@ -1192,6 +1210,22 @@ func init() {
       "in": "query",
       "required": true
     },
+    "bflaStatusIsFilter": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "name": "bflaStatus[is]",
+      "in": "query"
+    },
+    "bflaStatusIsNotFilter": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "name": "bflaStatus[isNot]",
+      "in": "query"
+    },
     "destinationIPIsFilter": {
       "type": "array",
       "items": {
@@ -1206,6 +1240,22 @@ func init() {
         "type": "string"
       },
       "name": "destinationIP[isNot]",
+      "in": "query"
+    },
+    "destinationK8sObjectNameIsFilter": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "name": "destinationK8sObject.name[is]",
+      "in": "query"
+    },
+    "destinationK8sObjectNameIsNotFilter": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "name": "destinationK8sObject.name[isNot]",
       "in": "query"
     },
     "destinationPortIsFilter": {
@@ -1386,6 +1436,22 @@ func init() {
         "type": "string"
       },
       "name": "sourceIP[isNot]",
+      "in": "query"
+    },
+    "sourceK8sObjectNameIsFilter": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "name": "sourceK8sObject.name[is]",
+      "in": "query"
+    },
+    "sourceK8sObjectNameIsNotFilter": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "name": "sourceK8sObject.name[isNot]",
       "in": "query"
     },
     "specContainsFilter": {
@@ -1757,6 +1823,54 @@ func init() {
               "type": "string"
             },
             "name": "spec[contains]",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "name": "destinationK8sObject.name[is]",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "name": "destinationK8sObject.name[isNot]",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "name": "sourceK8sObject.name[is]",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "name": "sourceK8sObject.name[isNot]",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "name": "bflaStatus[is]",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "name": "bflaStatus[isNot]",
             "in": "query"
           }
         ],
@@ -3133,6 +3247,22 @@ func init() {
       "in": "query",
       "required": true
     },
+    "bflaStatusIsFilter": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "name": "bflaStatus[is]",
+      "in": "query"
+    },
+    "bflaStatusIsNotFilter": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "name": "bflaStatus[isNot]",
+      "in": "query"
+    },
     "destinationIPIsFilter": {
       "type": "array",
       "items": {
@@ -3147,6 +3277,22 @@ func init() {
         "type": "string"
       },
       "name": "destinationIP[isNot]",
+      "in": "query"
+    },
+    "destinationK8sObjectNameIsFilter": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "name": "destinationK8sObject.name[is]",
+      "in": "query"
+    },
+    "destinationK8sObjectNameIsNotFilter": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "name": "destinationK8sObject.name[isNot]",
       "in": "query"
     },
     "destinationPortIsFilter": {
@@ -3327,6 +3473,22 @@ func init() {
         "type": "string"
       },
       "name": "sourceIP[isNot]",
+      "in": "query"
+    },
+    "sourceK8sObjectNameIsFilter": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "name": "sourceK8sObject.name[is]",
+      "in": "query"
+    },
+    "sourceK8sObjectNameIsNotFilter": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "name": "sourceK8sObject.name[isNot]",
       "in": "query"
     },
     "specContainsFilter": {

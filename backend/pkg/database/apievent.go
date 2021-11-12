@@ -58,6 +58,8 @@ const (
 	eventTypeColumnName            = "event_type"
 	bflaStatusColumnName           = "bfla_status"
 	requestIdColumnName            = "request_id"
+	destinationK8sObjectColumnName = "destination_k8s_object"
+	sourceK8sObjectColumnName      = "source_k8s_object"
 )
 
 var specDiffColumns = []string{newReconstructedSpecColumnName, oldReconstructedSpecColumnName, newProvidedSpecColumnName, oldProvidedSpecColumnName}
@@ -101,8 +103,8 @@ type APIEvent struct {
 	// We'll not always have a corresponding API info (e.g. non-API resources) so the type is needed also for the event
 	EventType models.APIType `json:"eventType,omitempty" gorm:"column:event_type" faker:"oneof: INTERNAL, EXTERNAL"`
 
-	DestinationK8sObject *K8sObjectRef     `json:"destinationK8sObject,omitempty"`
-	SourceK8sObject      *K8sObjectRef     `json:"sourceK8sObject,omitempty"`
+	DestinationK8sObject *K8sObjectRef     `json:"destinationK8sObject,omitempty" gorm:"column:destination_k8s_object"`
+	SourceK8sObject      *K8sObjectRef     `json:"sourceK8sObject,omitempty" gorm:"column:source_k8s_object"`
 	BFLAStatus           models.BFLAStatus `json:"bflaStatus" gorm:"column:bfla_status"`
 }
 
@@ -292,32 +294,38 @@ func GetAPIEventsAndTotal(params operations.GetAPIEventsParams) ([]APIEvent, int
 
 func getAPIEventsParamsToFilters(params operations.GetAPIEventsParams) *APIEventsFilters {
 	return &APIEventsFilters{
-		DestinationIPIsNot:   params.DestinationIPIsNot,
-		DestinationIPIs:      params.DestinationIPIs,
-		DestinationPortIsNot: params.DestinationPortIsNot,
-		DestinationPortIs:    params.DestinationPortIs,
-		EndTime:              params.EndTime,
-		ShowNonAPI:           params.ShowNonAPI,
-		HasSpecDiffIs:        params.HasSpecDiffIs,
-		SpecDiffTypeIs:       params.SpecDiffTypeIs,
-		MethodIs:             params.MethodIs,
-		PathContains:         params.PathContains,
-		PathEnd:              params.PathEnd,
-		PathIsNot:            params.PathIsNot,
-		PathIs:               params.PathIs,
-		PathStart:            params.PathStart,
-		SourceIPIsNot:        params.SourceIPIsNot,
-		SourceIPIs:           params.SourceIPIs,
-		SpecContains:         params.SpecContains,
-		SpecEnd:              params.SpecEnd,
-		SpecIsNot:            params.SpecIsNot,
-		SpecIs:               params.SpecIs,
-		SpecStart:            params.SpecStart,
-		StartTime:            params.StartTime,
-		StatusCodeGte:        params.StatusCodeGte,
-		StatusCodeIsNot:      params.StatusCodeIsNot,
-		StatusCodeIs:         params.StatusCodeIs,
-		StatusCodeLte:        params.StatusCodeLte,
+		DestinationIPIsNot:            params.DestinationIPIsNot,
+		DestinationIPIs:               params.DestinationIPIs,
+		DestinationPortIsNot:          params.DestinationPortIsNot,
+		DestinationPortIs:             params.DestinationPortIs,
+		EndTime:                       params.EndTime,
+		ShowNonAPI:                    params.ShowNonAPI,
+		HasSpecDiffIs:                 params.HasSpecDiffIs,
+		SpecDiffTypeIs:                params.SpecDiffTypeIs,
+		MethodIs:                      params.MethodIs,
+		PathContains:                  params.PathContains,
+		PathEnd:                       params.PathEnd,
+		PathIsNot:                     params.PathIsNot,
+		PathIs:                        params.PathIs,
+		PathStart:                     params.PathStart,
+		SourceIPIsNot:                 params.SourceIPIsNot,
+		SourceIPIs:                    params.SourceIPIs,
+		SpecContains:                  params.SpecContains,
+		SpecEnd:                       params.SpecEnd,
+		SpecIsNot:                     params.SpecIsNot,
+		SpecIs:                        params.SpecIs,
+		SpecStart:                     params.SpecStart,
+		StartTime:                     params.StartTime,
+		StatusCodeGte:                 params.StatusCodeGte,
+		StatusCodeIsNot:               params.StatusCodeIsNot,
+		StatusCodeIs:                  params.StatusCodeIs,
+		StatusCodeLte:                 params.StatusCodeLte,
+		BflaStatusIsNot:               params.BflaStatusIsNot,
+		BflaStatusIs:                  params.BflaStatusIs,
+		DestinationK8sObjectNameIsNot: params.DestinationK8sObjectNameIsNot,
+		DestinationK8sObjectNameIs:    params.DestinationK8sObjectNameIs,
+		SourceK8sObjectNameIsNot:      params.SourceK8sObjectNameIsNot,
+		SourceK8sObjectNameIs:         params.SourceK8sObjectNameIs,
 	}
 }
 
@@ -362,34 +370,40 @@ func GetAPIEventsLatestDiffs(latestDiffsNum int) ([]APIEvent, error) {
 }
 
 type APIEventsFilters struct {
-	DestinationIPIsNot    []string
-	DestinationIPIs       []string
-	DestinationPortIsNot  []string
-	DestinationPortIs     []string
-	EndTime               strfmt.DateTime
-	ShowNonAPI            bool
-	HasSpecDiffIs         *bool
-	SpecDiffTypeIs        []string
-	MethodIs              []string
-	ReconstructedPathIDIs []string
-	ProvidedPathIDIs      []string
-	PathContains          []string
-	PathEnd               *string
-	PathIsNot             []string
-	PathIs                []string
-	PathStart             *string
-	SourceIPIsNot         []string
-	SourceIPIs            []string
-	SpecContains          []string
-	SpecEnd               *string
-	SpecIsNot             []string
-	SpecIs                []string
-	SpecStart             *string
-	StartTime             strfmt.DateTime
-	StatusCodeGte         *string
-	StatusCodeIsNot       []string
-	StatusCodeIs          []string
-	StatusCodeLte         *string
+	DestinationIPIsNot            []string
+	DestinationIPIs               []string
+	DestinationPortIsNot          []string
+	DestinationPortIs             []string
+	EndTime                       strfmt.DateTime
+	ShowNonAPI                    bool
+	HasSpecDiffIs                 *bool
+	SpecDiffTypeIs                []string
+	MethodIs                      []string
+	ReconstructedPathIDIs         []string
+	ProvidedPathIDIs              []string
+	PathContains                  []string
+	PathEnd                       *string
+	PathIsNot                     []string
+	PathIs                        []string
+	PathStart                     *string
+	SourceIPIsNot                 []string
+	SourceIPIs                    []string
+	SpecContains                  []string
+	SpecEnd                       *string
+	SpecIsNot                     []string
+	SpecIs                        []string
+	SpecStart                     *string
+	StartTime                     strfmt.DateTime
+	StatusCodeGte                 *string
+	StatusCodeIsNot               []string
+	StatusCodeIs                  []string
+	StatusCodeLte                 *string
+	BflaStatusIsNot               []string
+	BflaStatusIs                  []string
+	DestinationK8sObjectNameIsNot []string
+	DestinationK8sObjectNameIs    []string
+	SourceK8sObjectNameIsNot      []string
+	SourceK8sObjectNameIs         []string
 }
 
 func SetAPIEventsFilters(tx *gorm.DB, filters *APIEventsFilters, shouldSetTimeFilters bool) *gorm.DB {
@@ -440,6 +454,22 @@ func SetAPIEventsFilters(tx *gorm.DB, filters *APIEventsFilters, shouldSetTimeFi
 	tx = FilterContains(tx, hostSpecNameColumnName, filters.SpecContains)
 	tx = FilterStartsWith(tx, hostSpecNameColumnName, filters.SpecStart)
 	tx = FilterEndsWith(tx, hostSpecNameColumnName, filters.SpecEnd)
+
+	// BFLA status filters
+	tx = FilterIs(tx, bflaStatusColumnName, filters.BflaStatusIs)
+	tx = FilterIsNot(tx, bflaStatusColumnName, filters.BflaStatusIsNot)
+
+	// Destination K8s Object filters
+	tx = FilterIs(tx, fmt.Sprintf("%s->>'name'", destinationK8sObjectColumnName), filters.DestinationK8sObjectNameIs)
+	tx = FilterIsNot(tx, fmt.Sprintf("%s->>'name'", destinationK8sObjectColumnName), filters.DestinationK8sObjectNameIsNot)
+
+	// Source K8s Object filters
+	tx = FilterIs(tx, fmt.Sprintf("%s->>'name'", sourceK8sObjectColumnName), filters.SourceK8sObjectNameIs)
+	tx = FilterIsNot(tx, fmt.Sprintf("%s->>'name'", sourceK8sObjectColumnName), filters.SourceK8sObjectNameIsNot)
+
+	// BFLA status filters
+	tx = FilterIs(tx, bflaStatusColumnName, filters.BflaStatusIs)
+	tx = FilterIsNot(tx, bflaStatusColumnName, filters.BflaStatusIsNot)
 
 	// ignore non APIs
 	if !filters.ShowNonAPI {

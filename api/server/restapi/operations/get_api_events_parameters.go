@@ -44,11 +44,27 @@ type GetAPIEventsParams struct {
 	/*
 	  In: query
 	*/
+	BflaStatusIsNot []string
+	/*
+	  In: query
+	*/
+	BflaStatusIs []string
+	/*
+	  In: query
+	*/
 	DestinationIPIsNot []string
 	/*
 	  In: query
 	*/
 	DestinationIPIs []string
+	/*
+	  In: query
+	*/
+	DestinationK8sObjectNameIsNot []string
+	/*
+	  In: query
+	*/
+	DestinationK8sObjectNameIs []string
 	/*
 	  In: query
 	*/
@@ -128,6 +144,14 @@ type GetAPIEventsParams struct {
 	/*
 	  In: query
 	*/
+	SourceK8sObjectNameIsNot []string
+	/*
+	  In: query
+	*/
+	SourceK8sObjectNameIs []string
+	/*
+	  In: query
+	*/
 	SpecDiffTypeIs []string
 	/*
 	  In: query
@@ -183,6 +207,16 @@ func (o *GetAPIEventsParams) BindRequest(r *http.Request, route *middleware.Matc
 
 	qs := runtime.Values(r.URL.Query())
 
+	qBflaStatusIsNot, qhkBflaStatusIsNot, _ := qs.GetOK("bflaStatus[isNot]")
+	if err := o.bindBflaStatusIsNot(qBflaStatusIsNot, qhkBflaStatusIsNot, route.Formats); err != nil {
+		res = append(res, err)
+	}
+
+	qBflaStatusIs, qhkBflaStatusIs, _ := qs.GetOK("bflaStatus[is]")
+	if err := o.bindBflaStatusIs(qBflaStatusIs, qhkBflaStatusIs, route.Formats); err != nil {
+		res = append(res, err)
+	}
+
 	qDestinationIPIsNot, qhkDestinationIPIsNot, _ := qs.GetOK("destinationIP[isNot]")
 	if err := o.bindDestinationIPIsNot(qDestinationIPIsNot, qhkDestinationIPIsNot, route.Formats); err != nil {
 		res = append(res, err)
@@ -190,6 +224,16 @@ func (o *GetAPIEventsParams) BindRequest(r *http.Request, route *middleware.Matc
 
 	qDestinationIPIs, qhkDestinationIPIs, _ := qs.GetOK("destinationIP[is]")
 	if err := o.bindDestinationIPIs(qDestinationIPIs, qhkDestinationIPIs, route.Formats); err != nil {
+		res = append(res, err)
+	}
+
+	qDestinationK8sObjectNameIsNot, qhkDestinationK8sObjectNameIsNot, _ := qs.GetOK("destinationK8sObject.name[isNot]")
+	if err := o.bindDestinationK8sObjectNameIsNot(qDestinationK8sObjectNameIsNot, qhkDestinationK8sObjectNameIsNot, route.Formats); err != nil {
+		res = append(res, err)
+	}
+
+	qDestinationK8sObjectNameIs, qhkDestinationK8sObjectNameIs, _ := qs.GetOK("destinationK8sObject.name[is]")
+	if err := o.bindDestinationK8sObjectNameIs(qDestinationK8sObjectNameIs, qhkDestinationK8sObjectNameIs, route.Formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -278,6 +322,16 @@ func (o *GetAPIEventsParams) BindRequest(r *http.Request, route *middleware.Matc
 		res = append(res, err)
 	}
 
+	qSourceK8sObjectNameIsNot, qhkSourceK8sObjectNameIsNot, _ := qs.GetOK("sourceK8sObject.name[isNot]")
+	if err := o.bindSourceK8sObjectNameIsNot(qSourceK8sObjectNameIsNot, qhkSourceK8sObjectNameIsNot, route.Formats); err != nil {
+		res = append(res, err)
+	}
+
+	qSourceK8sObjectNameIs, qhkSourceK8sObjectNameIs, _ := qs.GetOK("sourceK8sObject.name[is]")
+	if err := o.bindSourceK8sObjectNameIs(qSourceK8sObjectNameIs, qhkSourceK8sObjectNameIs, route.Formats); err != nil {
+		res = append(res, err)
+	}
+
 	qSpecDiffTypeIs, qhkSpecDiffTypeIs, _ := qs.GetOK("specDiffType[is]")
 	if err := o.bindSpecDiffTypeIs(qSpecDiffTypeIs, qhkSpecDiffTypeIs, route.Formats); err != nil {
 		res = append(res, err)
@@ -338,6 +392,60 @@ func (o *GetAPIEventsParams) BindRequest(r *http.Request, route *middleware.Matc
 	return nil
 }
 
+// bindBflaStatusIsNot binds and validates array parameter BflaStatusIsNot from query.
+//
+// Arrays are parsed according to CollectionFormat: "" (defaults to "csv" when empty).
+func (o *GetAPIEventsParams) bindBflaStatusIsNot(rawData []string, hasKey bool, formats strfmt.Registry) error {
+	var qvBflaStatusIsNot string
+	if len(rawData) > 0 {
+		qvBflaStatusIsNot = rawData[len(rawData)-1]
+	}
+
+	// CollectionFormat:
+	bflaStatusIsNotIC := swag.SplitByFormat(qvBflaStatusIsNot, "")
+	if len(bflaStatusIsNotIC) == 0 {
+		return nil
+	}
+
+	var bflaStatusIsNotIR []string
+	for _, bflaStatusIsNotIV := range bflaStatusIsNotIC {
+		bflaStatusIsNotI := bflaStatusIsNotIV
+
+		bflaStatusIsNotIR = append(bflaStatusIsNotIR, bflaStatusIsNotI)
+	}
+
+	o.BflaStatusIsNot = bflaStatusIsNotIR
+
+	return nil
+}
+
+// bindBflaStatusIs binds and validates array parameter BflaStatusIs from query.
+//
+// Arrays are parsed according to CollectionFormat: "" (defaults to "csv" when empty).
+func (o *GetAPIEventsParams) bindBflaStatusIs(rawData []string, hasKey bool, formats strfmt.Registry) error {
+	var qvBflaStatusIs string
+	if len(rawData) > 0 {
+		qvBflaStatusIs = rawData[len(rawData)-1]
+	}
+
+	// CollectionFormat:
+	bflaStatusIsIC := swag.SplitByFormat(qvBflaStatusIs, "")
+	if len(bflaStatusIsIC) == 0 {
+		return nil
+	}
+
+	var bflaStatusIsIR []string
+	for _, bflaStatusIsIV := range bflaStatusIsIC {
+		bflaStatusIsI := bflaStatusIsIV
+
+		bflaStatusIsIR = append(bflaStatusIsIR, bflaStatusIsI)
+	}
+
+	o.BflaStatusIs = bflaStatusIsIR
+
+	return nil
+}
+
 // bindDestinationIPIsNot binds and validates array parameter DestinationIPIsNot from query.
 //
 // Arrays are parsed according to CollectionFormat: "" (defaults to "csv" when empty).
@@ -388,6 +496,60 @@ func (o *GetAPIEventsParams) bindDestinationIPIs(rawData []string, hasKey bool, 
 	}
 
 	o.DestinationIPIs = destinationIPIsIR
+
+	return nil
+}
+
+// bindDestinationK8sObjectNameIsNot binds and validates array parameter DestinationK8sObjectNameIsNot from query.
+//
+// Arrays are parsed according to CollectionFormat: "" (defaults to "csv" when empty).
+func (o *GetAPIEventsParams) bindDestinationK8sObjectNameIsNot(rawData []string, hasKey bool, formats strfmt.Registry) error {
+	var qvDestinationK8sObjectNameIsNot string
+	if len(rawData) > 0 {
+		qvDestinationK8sObjectNameIsNot = rawData[len(rawData)-1]
+	}
+
+	// CollectionFormat:
+	destinationK8sObjectNameIsNotIC := swag.SplitByFormat(qvDestinationK8sObjectNameIsNot, "")
+	if len(destinationK8sObjectNameIsNotIC) == 0 {
+		return nil
+	}
+
+	var destinationK8sObjectNameIsNotIR []string
+	for _, destinationK8sObjectNameIsNotIV := range destinationK8sObjectNameIsNotIC {
+		destinationK8sObjectNameIsNotI := destinationK8sObjectNameIsNotIV
+
+		destinationK8sObjectNameIsNotIR = append(destinationK8sObjectNameIsNotIR, destinationK8sObjectNameIsNotI)
+	}
+
+	o.DestinationK8sObjectNameIsNot = destinationK8sObjectNameIsNotIR
+
+	return nil
+}
+
+// bindDestinationK8sObjectNameIs binds and validates array parameter DestinationK8sObjectNameIs from query.
+//
+// Arrays are parsed according to CollectionFormat: "" (defaults to "csv" when empty).
+func (o *GetAPIEventsParams) bindDestinationK8sObjectNameIs(rawData []string, hasKey bool, formats strfmt.Registry) error {
+	var qvDestinationK8sObjectNameIs string
+	if len(rawData) > 0 {
+		qvDestinationK8sObjectNameIs = rawData[len(rawData)-1]
+	}
+
+	// CollectionFormat:
+	destinationK8sObjectNameIsIC := swag.SplitByFormat(qvDestinationK8sObjectNameIs, "")
+	if len(destinationK8sObjectNameIsIC) == 0 {
+		return nil
+	}
+
+	var destinationK8sObjectNameIsIR []string
+	for _, destinationK8sObjectNameIsIV := range destinationK8sObjectNameIsIC {
+		destinationK8sObjectNameIsI := destinationK8sObjectNameIsIV
+
+		destinationK8sObjectNameIsIR = append(destinationK8sObjectNameIsIR, destinationK8sObjectNameIsI)
+	}
+
+	o.DestinationK8sObjectNameIs = destinationK8sObjectNameIsIR
 
 	return nil
 }
@@ -871,6 +1033,60 @@ func (o *GetAPIEventsParams) bindSourceIPIs(rawData []string, hasKey bool, forma
 	}
 
 	o.SourceIPIs = sourceIPIsIR
+
+	return nil
+}
+
+// bindSourceK8sObjectNameIsNot binds and validates array parameter SourceK8sObjectNameIsNot from query.
+//
+// Arrays are parsed according to CollectionFormat: "" (defaults to "csv" when empty).
+func (o *GetAPIEventsParams) bindSourceK8sObjectNameIsNot(rawData []string, hasKey bool, formats strfmt.Registry) error {
+	var qvSourceK8sObjectNameIsNot string
+	if len(rawData) > 0 {
+		qvSourceK8sObjectNameIsNot = rawData[len(rawData)-1]
+	}
+
+	// CollectionFormat:
+	sourceK8sObjectNameIsNotIC := swag.SplitByFormat(qvSourceK8sObjectNameIsNot, "")
+	if len(sourceK8sObjectNameIsNotIC) == 0 {
+		return nil
+	}
+
+	var sourceK8sObjectNameIsNotIR []string
+	for _, sourceK8sObjectNameIsNotIV := range sourceK8sObjectNameIsNotIC {
+		sourceK8sObjectNameIsNotI := sourceK8sObjectNameIsNotIV
+
+		sourceK8sObjectNameIsNotIR = append(sourceK8sObjectNameIsNotIR, sourceK8sObjectNameIsNotI)
+	}
+
+	o.SourceK8sObjectNameIsNot = sourceK8sObjectNameIsNotIR
+
+	return nil
+}
+
+// bindSourceK8sObjectNameIs binds and validates array parameter SourceK8sObjectNameIs from query.
+//
+// Arrays are parsed according to CollectionFormat: "" (defaults to "csv" when empty).
+func (o *GetAPIEventsParams) bindSourceK8sObjectNameIs(rawData []string, hasKey bool, formats strfmt.Registry) error {
+	var qvSourceK8sObjectNameIs string
+	if len(rawData) > 0 {
+		qvSourceK8sObjectNameIs = rawData[len(rawData)-1]
+	}
+
+	// CollectionFormat:
+	sourceK8sObjectNameIsIC := swag.SplitByFormat(qvSourceK8sObjectNameIs, "")
+	if len(sourceK8sObjectNameIsIC) == 0 {
+		return nil
+	}
+
+	var sourceK8sObjectNameIsIR []string
+	for _, sourceK8sObjectNameIsIV := range sourceK8sObjectNameIsIC {
+		sourceK8sObjectNameIsI := sourceK8sObjectNameIsIV
+
+		sourceK8sObjectNameIsIR = append(sourceK8sObjectNameIsIR, sourceK8sObjectNameIsI)
+	}
+
+	o.SourceK8sObjectNameIs = sourceK8sObjectNameIsIR
 
 	return nil
 }
