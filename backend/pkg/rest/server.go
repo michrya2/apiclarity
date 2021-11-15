@@ -30,12 +30,14 @@ import (
 
 type Server struct {
 	server         *restapi.Server
+	bflaDetector   bfladetector.BFLADetector
 	speculator     *_speculator.Speculator
 	authzmodelRepo bfladetector.AuthzModelRepository
 }
 
-func CreateRESTServer(port int, speculator *_speculator.Speculator, authzmodelRepo bfladetector.AuthzModelRepository) (*Server, error) {
+func CreateRESTServer(port int, speculator *_speculator.Speculator, authzmodelRepo bfladetector.AuthzModelRepository, bflaDetector bfladetector.BFLADetector) (*Server, error) {
 	s := &Server{
+		bflaDetector:   bflaDetector,
 		speculator:     speculator,
 		authzmodelRepo: authzmodelRepo,
 	}
@@ -120,6 +122,8 @@ func CreateRESTServer(port int, speculator *_speculator.Speculator, authzmodelRe
 	})
 
 	api.GetAuthorizationModelNamespaceHandler = operations.GetAuthorizationModelNamespaceHandlerFunc(s.GetAuthorizationModelNamespace)
+	api.PutAuthorizationModelTraceTraceIDApproveHandler = operations.PutAuthorizationModelTraceTraceIDApproveHandlerFunc(s.PutAuthorizationModelTraceTraceIDApprove)
+	api.PutAuthorizationModelTraceTraceIDDenyHandler = operations.PutAuthorizationModelTraceTraceIDDenyHandlerFunc(s.PutAuthorizationModelTraceTraceIDDeny)
 
 	server := restapi.NewServer(api)
 

@@ -83,7 +83,7 @@ func initDataBase() *gorm.DB {
 	}
 
 	// this will ensure table is created
-	if err := db.AutoMigrate(&APIEvent{}, &APIInfo{}, &Review{}, &NamespaceAuthorizationModels{}); err != nil {
+	if err := db.AutoMigrate(&APIEvent{}, &APIInfo{}, &Review{}); err != nil {
 		log.Fatalf("Failed to run auto migration: %v", err)
 	}
 

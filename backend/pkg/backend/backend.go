@@ -139,9 +139,9 @@ func Run() {
 			}
 		}
 	}()
-	authzmodelRepo := _database.NewAuthZModelRepository(_database.DB)
+	authzmodelRepo := bfladetector.NewAuthZModelRepository(_database.DB)
 	const NrOfTracesToLearn = 200
-	bflaDetector, err := bfladetector.New(globalCtx, authzmodelRepo, NrOfTracesToLearn, _database.BFLAOpenAPIProvider{})
+	bflaDetector, err := bfladetector.New(globalCtx, authzmodelRepo, NrOfTracesToLearn, bfladetector.BFLAOpenAPIProvider{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -178,7 +178,7 @@ func Run() {
 	tracesServer.Start(errChan)
 	defer tracesServer.Stop()
 
-	restServer, err := rest.CreateRESTServer(config.BackendRestPort, backend.speculator, authzmodelRepo)
+	restServer, err := rest.CreateRESTServer(config.BackendRestPort, backend.speculator, authzmodelRepo, bflaDetector)
 	if err != nil {
 		log.Fatalf("Failed to create REST server: %v", err)
 	}
@@ -215,7 +215,7 @@ func startReviewTableCleaner(ctx context.Context, cleanInterval time.Duration) {
 				log.Debugf("Stopping database cleaner")
 				return
 			case <-time.After(cleanInterval):
-				if err := _database.GetReviewTable().Where("approved =  ?", true).Delete(_database.Review{}).Error; err != nil {
+				if err := _database.GetReviewTable().Where("approved = ?", true).Delete(_database.Review{}).Error; err != nil {
 					log.Errorf("Failed to delete approved review from database. %v", err)
 				}
 			}

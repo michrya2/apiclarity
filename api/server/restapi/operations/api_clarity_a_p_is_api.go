@@ -96,6 +96,12 @@ func NewAPIClarityAPIsAPI(spec *loads.Document) *APIClarityAPIsAPI {
 		PutAPIInventoryAPIIDSpecsProvidedSpecHandler: PutAPIInventoryAPIIDSpecsProvidedSpecHandlerFunc(func(params PutAPIInventoryAPIIDSpecsProvidedSpecParams) middleware.Responder {
 			return middleware.NotImplemented("operation PutAPIInventoryAPIIDSpecsProvidedSpec has not yet been implemented")
 		}),
+		PutAuthorizationModelTraceTraceIDApproveHandler: PutAuthorizationModelTraceTraceIDApproveHandlerFunc(func(params PutAuthorizationModelTraceTraceIDApproveParams) middleware.Responder {
+			return middleware.NotImplemented("operation PutAuthorizationModelTraceTraceIDApprove has not yet been implemented")
+		}),
+		PutAuthorizationModelTraceTraceIDDenyHandler: PutAuthorizationModelTraceTraceIDDenyHandlerFunc(func(params PutAuthorizationModelTraceTraceIDDenyParams) middleware.Responder {
+			return middleware.NotImplemented("operation PutAuthorizationModelTraceTraceIDDeny has not yet been implemented")
+		}),
 	}
 }
 
@@ -168,6 +174,10 @@ type APIClarityAPIsAPI struct {
 	PostAPIInventoryReviewIDApprovedReviewHandler PostAPIInventoryReviewIDApprovedReviewHandler
 	// PutAPIInventoryAPIIDSpecsProvidedSpecHandler sets the operation handler for the put API inventory API ID specs provided spec operation
 	PutAPIInventoryAPIIDSpecsProvidedSpecHandler PutAPIInventoryAPIIDSpecsProvidedSpecHandler
+	// PutAuthorizationModelTraceTraceIDApproveHandler sets the operation handler for the put authorization model trace trace ID approve operation
+	PutAuthorizationModelTraceTraceIDApproveHandler PutAuthorizationModelTraceTraceIDApproveHandler
+	// PutAuthorizationModelTraceTraceIDDenyHandler sets the operation handler for the put authorization model trace trace ID deny operation
+	PutAuthorizationModelTraceTraceIDDenyHandler PutAuthorizationModelTraceTraceIDDenyHandler
 
 	// ServeError is called when an error is received, there is a default handler
 	// but you can set your own with this
@@ -298,6 +308,12 @@ func (o *APIClarityAPIsAPI) Validate() error {
 	}
 	if o.PutAPIInventoryAPIIDSpecsProvidedSpecHandler == nil {
 		unregistered = append(unregistered, "PutAPIInventoryAPIIDSpecsProvidedSpecHandler")
+	}
+	if o.PutAuthorizationModelTraceTraceIDApproveHandler == nil {
+		unregistered = append(unregistered, "PutAuthorizationModelTraceTraceIDApproveHandler")
+	}
+	if o.PutAuthorizationModelTraceTraceIDDenyHandler == nil {
+		unregistered = append(unregistered, "PutAuthorizationModelTraceTraceIDDenyHandler")
 	}
 
 	if len(unregistered) > 0 {
@@ -459,6 +475,14 @@ func (o *APIClarityAPIsAPI) initHandlerCache() {
 		o.handlers["PUT"] = make(map[string]http.Handler)
 	}
 	o.handlers["PUT"]["/apiInventory/{apiId}/specs/providedSpec"] = NewPutAPIInventoryAPIIDSpecsProvidedSpec(o.context, o.PutAPIInventoryAPIIDSpecsProvidedSpecHandler)
+	if o.handlers["PUT"] == nil {
+		o.handlers["PUT"] = make(map[string]http.Handler)
+	}
+	o.handlers["PUT"]["/authorizationModel/trace/{traceID}/approve"] = NewPutAuthorizationModelTraceTraceIDApprove(o.context, o.PutAuthorizationModelTraceTraceIDApproveHandler)
+	if o.handlers["PUT"] == nil {
+		o.handlers["PUT"] = make(map[string]http.Handler)
+	}
+	o.handlers["PUT"]["/authorizationModel/trace/{traceID}/deny"] = NewPutAuthorizationModelTraceTraceIDDeny(o.context, o.PutAuthorizationModelTraceTraceIDDenyHandler)
 }
 
 // Serve creates a http handler to serve the API over HTTP

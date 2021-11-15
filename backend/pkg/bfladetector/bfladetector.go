@@ -3,18 +3,17 @@ package bfladetector
 import (
 	"context"
 	"errors"
+	"fmt"
+	"github.com/apiclarity/apiclarity/backend/pkg/database"
 	"io"
-	"net/url"
 	"os"
 	"path"
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
-
 	"github.com/apiclarity/apiclarity/backend/pkg/k8straceannotator"
 	"github.com/apiclarity/speculator/pkg/spec"
+	log "github.com/sirupsen/logrus"
 )
 
 type TraceMessage struct {
@@ -49,12 +48,20 @@ type OpenAPIProvider interface {
 	GetOpenAPI(serviceName string) (io.Reader, error)
 }
 
+type BFLADetector interface {
+	Run(ctx context.Context, enrichedTraceCh <-chan *k8straceannotator.K8SAnnotatedK8STelemetry) <-chan *k8straceannotator.K8SAnnotatedK8STelemetry
+	ApproveAPIEvent(ctx context.Context, id uint32) error
+	DenyAPIEvent(ctx context.Context, id uint32) error
+}
+
 func New(ctx context.Context, repo AuthzModelRepository, learnTracesNr int, openapiProvider OpenAPIProvider) (proc *bflaDetector, err error) {
 	proc = &bflaDetector{
 		repo:            repo,
+		openapiProvider: openapiProvider,
 		errCh:           make(chan error),
 		learnTracesNr:   learnTracesNr,
-		openapiProvider: openapiProvider,
+		approveTraceCh:  make(chan uint32),
+		denyTraceCh:     make(chan uint32),
 	}
 	go func() {
 		for {
@@ -74,29 +81,70 @@ type bflaDetector struct {
 	openapiProvider OpenAPIProvider
 	errCh           chan error
 	learnTracesNr   int
+
+	approveTraceCh chan uint32
+	denyTraceCh    chan uint32
 }
 
-func (p *bflaDetector) ApproveTrace(traceID string) error {
+func (p *bflaDetector) initLearnAndDetectBFLA(namespace string, learningBegins, learningEnds time.Time, suspiciousTracesCh chan *k8straceannotator.K8SAnnotatedK8STelemetry) *learnAndDetectBFLA {
+	return &learnAndDetectBFLA{
+		namespace:          namespace,
+		learningBegins:     learningBegins,
+		learningEnds:       learningEnds,
+		tracesCh:           make(chan *k8straceannotator.K8SAnnotatedK8STelemetry),
+		doneCh:             make(chan struct{}),
+		errCh:              make(chan error),
+		suspiciousTracesCh: suspiciousTracesCh,
+		repo:               p.repo,
+		openapiProvider:    p.openapiProvider,
+		learnTracesNr:      p.learnTracesNr,
+	}
+}
+
+func (p *bflaDetector) ApproveAPIEvent(ctx context.Context, id uint32) error {
+	select {
+	case p.approveTraceCh <- id:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 	return nil
 }
-
-func (p *bflaDetector) DenyTrace(traceID string) error {
-
+func (p *bflaDetector) DenyAPIEvent(ctx context.Context, id uint32) error {
+	select {
+	case p.denyTraceCh <- id:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 	return nil
 }
 
 func (p *bflaDetector) Run(ctx context.Context, enrichedTraceCh <-chan *k8straceannotator.K8SAnnotatedK8STelemetry) <-chan *k8straceannotator.K8SAnnotatedK8STelemetry {
 	suspiciousTracesCh := make(chan *k8straceannotator.K8SAnnotatedK8STelemetry)
 	// namespace plus the time of the first occurrence or a trace for the namespaces
-	namespaceInfo := map[string]chan *k8straceannotator.K8SAnnotatedK8STelemetry{}
+	namespaceInfo := map[string]NamespacedBFLADetector{}
 	go func() {
 		for {
 			select {
+			case traceID := <-p.approveTraceCh:
+				apiEvent, err := database.GetAPIEvent(traceID)
+				if err != nil {
+					p.errCh <- fmt.Errorf("API event with id=%q not found: %s", traceID, err)
+					continue
+				}
+				if namespacedDetector, ok := namespaceInfo[apiEvent.DestinationK8sObject.Name]; ok {
+					namespacedDetector.ApproveTrace(apiEvent)
+				}
+			case traceID := <-p.denyTraceCh:
+				apiEvent, err := database.GetAPIEvent(traceID)
+				if err != nil {
+					p.errCh <- fmt.Errorf("API event with id=%d not found: %s", traceID, err)
+					continue
+				}
+				if namespacedDetector, ok := namespaceInfo[apiEvent.DestinationK8sObject.Name]; ok {
+					namespacedDetector.DenyTrace(apiEvent)
+				}
 			case trace, ok := <-enrichedTraceCh:
 				if !ok {
-					for _, learnTracesCh := range namespaceInfo {
-						close(learnTracesCh)
-					}
 					return
 				}
 				traceTime, err := parseTraceTime(trace)
@@ -105,16 +153,15 @@ func (p *bflaDetector) Run(ctx context.Context, enrichedTraceCh <-chan *k8strace
 					continue
 				}
 				//trace.TraceTime = traceTime
-				learnTracesCh, ok := namespaceInfo[trace.Destination.K8SObject.Namespace]
+				namespacedDetector, ok := namespaceInfo[trace.Destination.K8SObject.Namespace]
 				if !ok {
-					learnTracesCh = make(chan *k8straceannotator.K8SAnnotatedK8STelemetry)
-					namespaceInfo[trace.Destination.K8SObject.Namespace] = learnTracesCh
-					learningEnds := traceTime.Add(5 * time.Minute)
+					namespacedDetector = p.initLearnAndDetectBFLA(trace.Destination.K8SObject.Namespace, traceTime, traceTime.Add(5*time.Minute), suspiciousTracesCh)
+					go namespacedDetector.Run(ctx)
+					namespaceInfo[trace.Destination.K8SObject.Namespace] = namespacedDetector
 					log.Infof("Starting learning and detection for namespace=%s", trace.Destination.K8SObject.Namespace)
-					p.learnFromTracesAndDetectBFLA(ctx, trace.Destination.K8SObject.Namespace, traceTime, learningEnds, learnTracesCh, suspiciousTracesCh)
 				}
 				log.Infof("Sending trace for processing trace=%v", trace)
-				learnTracesCh <- trace
+				namespacedDetector.SendTrace(trace)
 
 			case <-ctx.Done():
 				return
@@ -122,168 +169,6 @@ func (p *bflaDetector) Run(ctx context.Context, enrichedTraceCh <-chan *k8strace
 		}
 	}()
 	return suspiciousTracesCh
-}
-
-func (p *bflaDetector) detectBFLAViolations(services map[string]*AuthorizationModel, trace *k8straceannotator.K8SAnnotatedK8STelemetry, suspiciousTracesCh chan<- *k8straceannotator.K8SAnnotatedK8STelemetry) {
-	if authzModel, ok := services[trace.Destination.K8SObject.Name]; ok {
-		op := authzModel.Operations.Find(func(op *Operation) bool {
-			return op.Path == p.rezolvePath(trace.Destination.K8SObject.Name, trace.SCNTRequest.Path) && op.Method == trace.SCNTRequest.Method
-		})
-		if op != nil {
-			aud := op.Audience.Find(func(sa *ServiceAccount) bool {
-				return sa.Name == trace.Source.K8SObject.Name
-			})
-			if aud != nil {
-				return
-			}
-		}
-	}
-	suspiciousTracesCh <- trace
-}
-
-func (p *bflaDetector) rezolvePath(host string, uri string) string {
-	u, _ := url.Parse(uri)
-	spec := p.getServiceOpenapiSpec(host)
-	urlpath := u.Path
-	if spec != nil {
-		pathDef, _ := matchSpecAndPath(u.Path, spec)
-		if pathDef != "" {
-			return pathDef
-		}
-	}
-	return urlpath
-}
-
-//TODO integrate with management
-//TODO smarter learning algo
-//TODO enhance AuthzModel with k8s data
-func (p *bflaDetector) learnFromServiceInteractions(trace *k8straceannotator.K8SAnnotatedK8STelemetry, services map[string]*AuthorizationModel) (servicesUpdated bool) {
-	aud := trace.Source.K8SObject.Name
-	host := trace.Destination.K8SObject.Name
-	resolvedPath := p.rezolvePath(host, trace.SCNTRequest.Path)
-	authzModel, ok := services[host]
-	if ok {
-		op := authzModel.Operations.Find(func(op *Operation) bool {
-			return op.Method == trace.SCNTRequest.Method && op.Path == resolvedPath
-		})
-		if op == nil {
-			authzModel.Operations = append(authzModel.Operations, &Operation{
-				Method:   trace.SCNTRequest.Method,
-				Path:     resolvedPath,
-				Audience: []*ServiceAccount{{Name: aud, K8sObject: trace.Source.K8SObject}},
-			})
-		} else if op.Audience.Find(func(sa *ServiceAccount) bool { return sa.Name == aud }) == nil {
-			op.Audience = append(op.Audience, &ServiceAccount{Name: aud, K8sObject: trace.Source.K8SObject})
-		} else {
-			return false
-		}
-	} else {
-		authzModel = &AuthorizationModel{
-			ServiceName: host,
-			K8sObject:   trace.Destination.K8SObject,
-			Operations: []*Operation{{
-				Method:   trace.SCNTRequest.Method,
-				Path:     resolvedPath,
-				Audience: []*ServiceAccount{{Name: aud, K8sObject: trace.Source.K8SObject}},
-			}},
-		}
-	}
-	services[host] = authzModel
-	return true
-}
-
-func (p *bflaDetector) learnFromTracesAndDetectBFLA(ctx context.Context, namespace string, learningBegins, learningEnds time.Time, tracesCh <-chan *k8straceannotator.K8SAnnotatedK8STelemetry, suspiciousTracesCh chan<- *k8straceannotator.K8SAnnotatedK8STelemetry) {
-
-	go func() {
-		data, err := p.repo.Load(ctx, namespace)
-		if err != nil {
-			p.errCh <- err
-			data = &NamespaceAuthorizationModel{Services: map[string]*AuthorizationModel{}}
-		}
-
-		for {
-			log.Infof("waiting for traces tracesProcessed=%d", data.TracesProcessed)
-			select {
-
-			case trace, ok := <-tracesCh:
-				if !ok {
-					log.Info("Finished learning")
-					return
-				}
-
-				log.Info("try to learn or detect BFLA data.TracesProcessed=", data.TracesProcessed)
-
-				//TODO if trace.TraceTime.After(learningEnds) {
-				if data.TracesProcessed > p.learnTracesNr {
-					p.detectBFLAViolations(data.Services, trace, suspiciousTracesCh)
-				} else {
-					servicesUpdated := p.learnFromServiceInteractions(trace, data.Services)
-					if servicesUpdated {
-						log.Info("bfla synced for authz model with id=%s", data.ID)
-						val, err := p.repo.Store(ctx, &NamespaceAuthorizationModel{
-							ID:              data.ID,
-							FirstTraceAt:    learningBegins,
-							LearningEndedAt: learningEnds,
-							Namespace:       namespace,
-							Services:        data.Services,
-							TracesProcessed: data.TracesProcessed,
-						})
-						if err != nil {
-							p.errCh <- err
-							return
-						}
-						data = val
-					}
-				}
-				data.TracesProcessed++
-				if err := p.repo.UpdateNrOfTraces(ctx, namespace, data.TracesProcessed); err != nil {
-					p.errCh <- err
-					return
-				}
-				// send the new updated model
-			case <-ctx.Done():
-				log.Info("ending learnFromTracesAndDetectBFLA")
-				return
-			}
-		}
-	}()
-}
-
-type GenericOpenapiSpec struct {
-	Paths map[string]*Path `yaml:"paths"`
-}
-
-type Path struct {
-	Ref         string                    `yaml:"$ref,omitempty"`
-	Summary     string                    `yaml:"summary,omitempty"`
-	Description string                    `yaml:"description,omitempty"`
-	Servers     interface{}               `yaml:"servers,omitempty"`
-	Operations  map[string]*HasParameters `yaml:",inline"`
-	Parameters  []*Parameter              `yaml:"parameters,omitempty"`
-}
-
-type HasParameters struct {
-	Parameters []*Parameter `yaml:"parameters,omitempty"`
-}
-
-type Parameter struct {
-	Name string `yaml:"name,omitempty"`
-	In   string `yaml:"in,omitempty"`
-}
-
-func (p *bflaDetector) getServiceOpenapiSpec(serviceName string) *GenericOpenapiSpec {
-	//p.management.V2ApiServiceAccountProvidedSpecGetImplicitAccount()
-	reader, err := p.openapiProvider.GetOpenAPI(serviceName)
-	if err != nil {
-		log.Error(err)
-		return nil
-	}
-	s := &GenericOpenapiSpec{}
-	if err := yaml.NewDecoder(reader).Decode(s); err != nil {
-		log.Error(err)
-		return nil
-	}
-	return s
 }
 
 func matchSpecAndPath(path string, spec *GenericOpenapiSpec) (pathDef string, paramValues map[string]string) {

@@ -2,11 +2,13 @@ package rest
 
 import (
 	"fmt"
+	"net/http"
+
+	log "github.com/sirupsen/logrus"
+
 	"github.com/apiclarity/apiclarity/api/server/models"
 	"github.com/apiclarity/apiclarity/api/server/restapi/operations"
 	"github.com/go-openapi/runtime/middleware"
-	log "github.com/sirupsen/logrus"
-	"net/http"
 )
 
 func (s *Server) GetAuthorizationModelNamespace(params operations.GetAuthorizationModelNamespaceParams) middleware.Responder {
@@ -19,4 +21,26 @@ func (s *Server) GetAuthorizationModelNamespace(params operations.GetAuthorizati
 	}
 
 	return operations.NewGetAuthorizationModelNamespaceOK().WithPayload(am.ToModel())
+}
+
+func (s *Server) PutAuthorizationModelTraceTraceIDApprove(params operations.PutAuthorizationModelTraceTraceIDApproveParams) middleware.Responder {
+	err := s.bflaDetector.ApproveAPIEvent(params.HTTPRequest.Context(), uint32(params.TraceID))
+	if err != nil {
+		log.Error(err)
+		return operations.NewPutAuthorizationModelTraceTraceIDApproveDefault(http.StatusInternalServerError).WithPayload(&models.APIResponse{
+			Message: err.Error(),
+		})
+	}
+	return operations.NewPutAuthorizationModelTraceTraceIDApproveOK().WithPayload(&models.SuccessResponse{Message: "Sent approve api event request successfully"})
+}
+
+func (s *Server) PutAuthorizationModelTraceTraceIDDeny(params operations.PutAuthorizationModelTraceTraceIDDenyParams) middleware.Responder {
+	err := s.bflaDetector.DenyAPIEvent(params.HTTPRequest.Context(), uint32(params.TraceID))
+	if err != nil {
+		log.Error(err)
+		return operations.NewPutAuthorizationModelTraceTraceIDDenyDefault(http.StatusInternalServerError).WithPayload(&models.APIResponse{
+			Message: err.Error(),
+		})
+	}
+	return operations.NewPutAuthorizationModelTraceTraceIDDenyOK().WithPayload(&models.SuccessResponse{Message: "Sent deny api event request successfully"})
 }

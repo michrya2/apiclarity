@@ -753,6 +753,34 @@ paths:
             $ref: '#/definitions/AuthorizationModel'
         default:
           $ref: '#/responses/UnknownError'
+  /authorizationModel/trace/{traceID}/approve:
+    put:
+      parameters:
+        - in: path
+          type: integer
+          required: true
+          name: traceID
+      responses:
+        '200':
+          description: 'Success'
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        default:
+          $ref: '#/responses/UnknownError'
+  /authorizationModel/trace/{traceID}/deny:
+    put:
+      parameters:
+        - in: path
+          type: integer
+          required: true
+          name: traceID
+      responses:
+        '200':
+          description: 'Success'
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        default:
+          $ref: '#/responses/UnknownError'
 
 parameters:
   startTime:

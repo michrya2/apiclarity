@@ -1,4 +1,4 @@
-package database
+package bfladetector
 
 import (
 	"bytes"
@@ -6,14 +6,21 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
-	"github.com/apiclarity/apiclarity/backend/pkg/bfladetector"
+	"github.com/apiclarity/apiclarity/backend/pkg/database"
 )
+
+func init() {
+	if err := database.DB.AutoMigrate(&NamespaceAuthorizationModels{}); err != nil {
+		log.Fatalf("Failed to run auto migration for Authorization Model: %v", err)
+	}
+}
 
 const (
 	authzModelTableName = "api_authzmodels"
@@ -35,7 +42,7 @@ func (NamespaceAuthorizationModels) TableName() string {
 	return authzModelTableName
 }
 
-type Services map[string]*bfladetector.AuthorizationModel
+type Services map[string]*AuthorizationModel
 
 // GormDataType gorm common data type
 func (Services) GormDataType() string { return "json" }
@@ -79,23 +86,23 @@ func (s *Services) Scan(value interface{}) error {
 	return err
 }
 
-func NewAuthZModelRepository(db *gorm.DB) *AuthzModelRepository {
-	return &AuthzModelRepository{table: db.Table(authzModelTableName)}
+func NewAuthZModelRepository(db *gorm.DB) *authzModelRepository {
+	return &authzModelRepository{table: db.Table(authzModelTableName)}
 }
 
-type AuthzModelRepository struct {
+type authzModelRepository struct {
 	table *gorm.DB
 }
 
-func (a AuthzModelRepository) Load(ctx context.Context, namespace string) (*bfladetector.NamespaceAuthorizationModel, error) {
+func (a authzModelRepository) Load(ctx context.Context, namespace string) (*NamespaceAuthorizationModel, error) {
 	data := &NamespaceAuthorizationModels{}
-	tx := FilterIs(a.table, authzModelNamespaceColumnName, []string{namespace})
+	tx := database.FilterIs(a.table, authzModelNamespaceColumnName, []string{namespace})
 	tx = a.table.WithContext(ctx).First(data)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
 
-	return &bfladetector.NamespaceAuthorizationModel{
+	return &NamespaceAuthorizationModel{
 		ID:              data.ID,
 		FirstTraceAt:    data.FirstTraceAt,
 		LearningEndedAt: data.LearningEndedAt,
@@ -105,7 +112,7 @@ func (a AuthzModelRepository) Load(ctx context.Context, namespace string) (*bfla
 	}, nil
 }
 
-func (a AuthzModelRepository) Store(ctx context.Context, data *bfladetector.NamespaceAuthorizationModel) (*bfladetector.NamespaceAuthorizationModel, error) {
+func (a authzModelRepository) Store(ctx context.Context, data *NamespaceAuthorizationModel) (*NamespaceAuthorizationModel, error) {
 	val := &NamespaceAuthorizationModels{
 		ID: data.ID, FirstTraceAt: data.FirstTraceAt,
 		LearningEndedAt: data.LearningEndedAt, Namespace: data.Namespace,
@@ -116,14 +123,14 @@ func (a AuthzModelRepository) Store(ctx context.Context, data *bfladetector.Name
 	if err != nil {
 		return nil, err
 	}
-	return &bfladetector.NamespaceAuthorizationModel{
+	return &NamespaceAuthorizationModel{
 		ID: val.ID, FirstTraceAt: val.FirstTraceAt,
 		LearningEndedAt: val.LearningEndedAt, Namespace: val.Namespace,
 		TracesProcessed: val.TracesProcessed, Services: val.Services,
 	}, err
 }
 
-func (a AuthzModelRepository) UpdateNrOfTraces(ctx context.Context, namespace string, tracesProcessed int) error {
+func (a authzModelRepository) UpdateNrOfTraces(ctx context.Context, namespace string, tracesProcessed int) error {
 	return a.table.WithContext(ctx).
 		Where(fmt.Sprintf("%s = ?", authzModelNamespaceColumnName), namespace).
 		UpdateColumn(authzModelTracesProcessedColumnName, tracesProcessed).Error
@@ -132,7 +139,7 @@ func (a AuthzModelRepository) UpdateNrOfTraces(ctx context.Context, namespace st
 type BFLAOpenAPIProvider struct{}
 
 func (d BFLAOpenAPIProvider) GetOpenAPI(serviceName string) (spec io.Reader, err error) {
-	invInfo, err := GetAPIInventoryByName(serviceName)
+	invInfo, err := database.GetAPIInventoryByName(serviceName)
 	if err != nil {
 		return nil, err
 	}

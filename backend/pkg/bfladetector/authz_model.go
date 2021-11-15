@@ -25,24 +25,24 @@ type AuthorizationModel struct {
 
 type Operations []*Operation
 
-func (ops Operations) Find(fn func(op *Operation) bool) *Operation {
-	for _, op := range ops {
+func (ops Operations) Find(fn func(op *Operation) bool) (int, *Operation) {
+	for i, op := range ops {
 		if fn(op) {
-			return op
+			return i, op
 		}
 	}
-	return nil
+	return 0, nil
 }
 
 type Audience []*ServiceAccount
 
-func (aud Audience) Find(fn func(sa *ServiceAccount) bool) *ServiceAccount {
-	for _, sa := range aud {
+func (aud Audience) Find(fn func(sa *ServiceAccount) bool) (int, *ServiceAccount) {
+	for i, sa := range aud {
 		if fn(sa) {
-			return sa
+			return i, sa
 		}
 	}
-	return nil
+	return 0, nil
 }
 
 type NamespaceAuthorizationModel struct {

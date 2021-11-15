@@ -191,7 +191,8 @@ spec:
             runAsUser: 1001
       containers:
         - name: apiclarity
-          image: danielvladco/apiclarity:558a780639d7cbb9f1964ae15d7ca7f8db6c2052
+#          image: danielvladco/apiclarity:558a780639d7cbb9f1964ae15d7ca7f8db6c2052
+          image: danielvladco/apiclarity:f1edb36e6029d64cc4239570cac30232b8569cae
           imagePullPolicy: Always
           args:
             - run

@@ -630,6 +630,52 @@ func init() {
         }
       }
     },
+    "/authorizationModel/trace/{traceID}/approve": {
+      "put": {
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "traceID",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/UnknownError"
+          }
+        }
+      }
+    },
+    "/authorizationModel/trace/{traceID}/deny": {
+      "put": {
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "traceID",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/UnknownError"
+          }
+        }
+      }
+    },
     "/authorizationModel/{namespace}": {
       "get": {
         "parameters": [
@@ -2732,6 +2778,58 @@ func init() {
               "items": {
                 "$ref": "#/definitions/HitCount"
               }
+            }
+          },
+          "default": {
+            "description": "unknown error",
+            "schema": {
+              "$ref": "#/definitions/ApiResponse"
+            }
+          }
+        }
+      }
+    },
+    "/authorizationModel/trace/{traceID}/approve": {
+      "put": {
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "traceID",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          },
+          "default": {
+            "description": "unknown error",
+            "schema": {
+              "$ref": "#/definitions/ApiResponse"
+            }
+          }
+        }
+      }
+    },
+    "/authorizationModel/trace/{traceID}/deny": {
+      "put": {
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "traceID",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
             }
           },
           "default": {
