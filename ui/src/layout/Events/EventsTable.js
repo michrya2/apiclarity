@@ -4,6 +4,7 @@ import Table, { utils } from 'components/Table';
 import Tag from 'components/Tag';
 import StatusIndicator from 'components/StatusIndicator';
 import SpecDiffIcon, { SPEC_DIFF_TYPES_MAP } from 'components/SpecDiffIcon';
+import BflaStatusIcon, { BFLA_STATUS_TYPES_MAP } from 'components/BflaStatusIcon';
 import { formatDate } from 'utils/utils';
 import { API_TYPE_ITEMS } from 'layout/Inventory';
 
@@ -83,11 +84,11 @@ const EventsTable = ({filters, refreshTimestamp}) => {
                 const {id, specDiffType} = row.original;
 
                 const {value} = SPEC_DIFF_TYPES_MAP[specDiffType] || {};
-                
+
                 if (!value || value === SPEC_DIFF_TYPES_MAP.NO_DIFF.value) {
                     return <utils.EmptyValue />;
                 }
-                
+
                 return (
                     <SpecDiffIcon id={id} specDiffType={specDiffType} />
                 )
@@ -113,14 +114,24 @@ const EventsTable = ({filters, refreshTimestamp}) => {
         {
             Header: 'BFLA',
             id: "bflaStatus",
-            accessor: "bflaStatus",
-            width: 30
+            width: 30,
+            Cell: ({row}) => {
+                const {id, bflaStatus} = row.original;
+
+                const {value} = BFLA_STATUS_TYPES_MAP[bflaStatus] || {};
+
+                if (!value) {
+                    return <utils.EmptyValue />;
+                }
+
+                return <BflaStatusIcon id={id} bflaStatusType={bflaStatus} />;
+            }
         }
     ], []);
 
     const history = useHistory();
     const {path} = useRouteMatch();
-    
+
     return (
         <Table
             columns={columns}

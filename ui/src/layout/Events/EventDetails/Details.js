@@ -1,16 +1,18 @@
 import React from 'react';
 import { useHistory } from 'react-router-dom';
 import TitleValueDisplay, { TitleValueDisplayRow } from 'components/TitleValueDisplay';
+import { utils } from 'components/Table';
 import StatusIndicator from 'components/StatusIndicator';
+import BflaStatusIcon from 'components/BflaStatusIcon';
 import Tag from 'components/Tag';
 import Button from 'components/Button';
 
 const Details = ({data}) => {
-    const {method, statusCode, path, query, sourceIP, destinationIP, destinationPort, hostSpecName, apiInfoId, apiType,
+    const {id, method, statusCode, path, query, sourceIP, destinationIP, destinationPort, hostSpecName, apiInfoId, apiType,
         sourceK8sObject, destinationK8sObject, bflaStatus} = data;
 
     const history = useHistory();
-    
+
     return (
         <div>
             <TitleValueDisplayRow>
@@ -27,7 +29,7 @@ const Details = ({data}) => {
             <TitleValueDisplayRow>
                 <TitleValueDisplay title="Source Name">{sourceK8sObject.name}</TitleValueDisplay>
                 <TitleValueDisplay title="Destination Name">{destinationK8sObject.name}</TitleValueDisplay>
-                <TitleValueDisplay title="BFLA">{bflaStatus}</TitleValueDisplay>
+                <TitleValueDisplay title="BFLA">{bflaStatus ? <BflaStatusIcon id={id} bflaStatusType={bflaStatus} /> : <utils.EmptyValue />}</TitleValueDisplay>
             </TitleValueDisplayRow>
             <TitleValueDisplayRow>
                 <TitleValueDisplay title="Source Kind">{sourceK8sObject.kind}</TitleValueDisplay>
