@@ -32,4 +32,17 @@
             }
         }
     }
+    .title-value-display-wrapper {
+        &.bfla-status {
+            width: 350px;
+        }
+        .bfla-status-title {
+            display: flex;
+            align-items: baseline;
+            > span {
+                margin-right: 10px;
+            }
+        }
+
+    }
 }
