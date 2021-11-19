@@ -4,16 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/apiclarity/apiclarity/backend/pkg/database"
 	"io"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
+	"github.com/apiclarity/apiclarity/api/server/models"
+	"github.com/apiclarity/apiclarity/backend/pkg/database"
 	"github.com/apiclarity/apiclarity/backend/pkg/k8straceannotator"
 	"github.com/apiclarity/speculator/pkg/spec"
-	log "github.com/sirupsen/logrus"
 )
 
 type TraceMessage struct {
@@ -86,15 +89,15 @@ type bflaDetector struct {
 	denyTraceCh    chan uint32
 }
 
-func (p *bflaDetector) initLearnAndDetectBFLA(namespace string, learningBegins, learningEnds time.Time, suspiciousTracesCh chan *k8straceannotator.K8SAnnotatedK8STelemetry) *learnAndDetectBFLA {
+func (p *bflaDetector) initLearnAndDetectBFLA(namespace string, suspiciousTracesCh chan *k8straceannotator.K8SAnnotatedK8STelemetry) *learnAndDetectBFLA {
 	return &learnAndDetectBFLA{
 		namespace:          namespace,
-		learningBegins:     learningBegins,
-		learningEnds:       learningEnds,
 		tracesCh:           make(chan *k8straceannotator.K8SAnnotatedK8STelemetry),
+		suspiciousTracesCh: suspiciousTracesCh,
+		approveTraceCh:     make(chan *database.APIEvent),
+		denyTraceCh:        make(chan *database.APIEvent),
 		doneCh:             make(chan struct{}),
 		errCh:              make(chan error),
-		suspiciousTracesCh: suspiciousTracesCh,
 		repo:               p.repo,
 		openapiProvider:    p.openapiProvider,
 		learnTracesNr:      p.learnTracesNr,
@@ -126,36 +129,65 @@ func (p *bflaDetector) Run(ctx context.Context, enrichedTraceCh <-chan *k8strace
 		for {
 			select {
 			case traceID := <-p.approveTraceCh:
+				log.Infof("Request approve trace event id=%d", traceID)
 				apiEvent, err := database.GetAPIEvent(traceID)
 				if err != nil {
 					p.errCh <- fmt.Errorf("API event with id=%q not found: %s", traceID, err)
 					continue
 				}
-				if namespacedDetector, ok := namespaceInfo[apiEvent.DestinationK8sObject.Name]; ok {
+				if namespacedDetector, ok := namespaceInfo[apiEvent.DestinationK8sObject.Namespace]; ok {
 					namespacedDetector.ApproveTrace(apiEvent)
+				} else {
+					namespacedDetector = p.initLearnAndDetectBFLA(apiEvent.DestinationK8sObject.Namespace, suspiciousTracesCh)
+					go namespacedDetector.Run(ctx)
+					namespaceInfo[apiEvent.DestinationK8sObject.Namespace] = namespacedDetector
+					log.Infof("Starting learning and detection for namespace=%s", apiEvent.DestinationK8sObject.Namespace)
 				}
+				if err := database.UpdateAPIEventBFLAStatusByPathMethodSrcDest(apiEvent.Path,
+					string(apiEvent.Method),
+					apiEvent.DestinationK8sObject.Name,
+					apiEvent.SourceK8sObject.Name,
+					""); err != nil {
+					p.errCh <- fmt.Errorf("unable to update past traces: err=%s", err)
+					continue
+				}
+
 			case traceID := <-p.denyTraceCh:
+				log.Infof("Request deny trace event id=%d", traceID)
 				apiEvent, err := database.GetAPIEvent(traceID)
 				if err != nil {
 					p.errCh <- fmt.Errorf("API event with id=%d not found: %s", traceID, err)
 					continue
 				}
-				if namespacedDetector, ok := namespaceInfo[apiEvent.DestinationK8sObject.Name]; ok {
+				if namespacedDetector, ok := namespaceInfo[apiEvent.DestinationK8sObject.Namespace]; ok {
 					namespacedDetector.DenyTrace(apiEvent)
+				} else {
+					namespacedDetector = p.initLearnAndDetectBFLA(apiEvent.DestinationK8sObject.Namespace, suspiciousTracesCh)
+					go namespacedDetector.Run(ctx)
+					namespaceInfo[apiEvent.DestinationK8sObject.Namespace] = namespacedDetector
+					log.Infof("Starting learning and detection for namespace=%s", apiEvent.DestinationK8sObject.Namespace)
+				}
+				if err := database.UpdateAPIEventBFLAStatusByPathMethodSrcDest(apiEvent.Path,
+					string(apiEvent.Method),
+					apiEvent.DestinationK8sObject.Name,
+					apiEvent.SourceK8sObject.Name,
+					resolveBFLAStatusInt(int(apiEvent.StatusCode))); err != nil {
+					p.errCh <- fmt.Errorf("unable to update past traces: err=%s", err)
+					continue
 				}
 			case trace, ok := <-enrichedTraceCh:
 				if !ok {
 					return
 				}
-				traceTime, err := parseTraceTime(trace)
-				if err != nil {
-					p.errCh <- err
-					continue
-				}
+				//traceTime, err := parseTraceTime(trace)
+				//if err != nil {
+				//	p.errCh <- err
+				//	continue
+				//}
 				//trace.TraceTime = traceTime
 				namespacedDetector, ok := namespaceInfo[trace.Destination.K8SObject.Namespace]
 				if !ok {
-					namespacedDetector = p.initLearnAndDetectBFLA(trace.Destination.K8SObject.Namespace, traceTime, traceTime.Add(5*time.Minute), suspiciousTracesCh)
+					namespacedDetector = p.initLearnAndDetectBFLA(trace.Destination.K8SObject.Namespace, suspiciousTracesCh)
 					go namespacedDetector.Run(ctx)
 					namespaceInfo[trace.Destination.K8SObject.Namespace] = namespacedDetector
 					log.Infof("Starting learning and detection for namespace=%s", trace.Destination.K8SObject.Namespace)
@@ -169,6 +201,23 @@ func (p *bflaDetector) Run(ctx context.Context, enrichedTraceCh <-chan *k8strace
 		}
 	}()
 	return suspiciousTracesCh
+}
+
+func ResolveBFLAStatus(statusCode string) models.BFLAStatus {
+	code, err := strconv.Atoi(statusCode)
+	if err == nil {
+		return resolveBFLAStatusInt(code)
+	}
+
+	return models.BFLAStatusSUSPICIOUSSRCALLOWED
+}
+
+func resolveBFLAStatusInt(code int) models.BFLAStatus {
+	if 200 > code || code > 299 {
+		return models.BFLAStatusSUSPICIOUSSRCDENIED
+	}
+
+	return models.BFLAStatusSUSPICIOUSSRCALLOWED
 }
 
 func matchSpecAndPath(path string, spec *GenericOpenapiSpec) (pathDef string, paramValues map[string]string) {

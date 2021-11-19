@@ -753,6 +753,7 @@ paths:
             $ref: '#/definitions/AuthorizationModel'
         default:
           $ref: '#/responses/UnknownError'
+
   /authorizationModel/trace/{traceID}/approve:
     put:
       parameters:
@@ -767,6 +768,7 @@ paths:
             $ref: '#/definitions/SuccessResponse'
         default:
           $ref: '#/responses/UnknownError'
+
   /authorizationModel/trace/{traceID}/deny:
     put:
       parameters:

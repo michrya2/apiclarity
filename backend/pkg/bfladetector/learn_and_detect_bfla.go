@@ -2,14 +2,14 @@ package bfladetector
 
 import (
 	"context"
+
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"net/url"
-	"time"
 
 	"github.com/apiclarity/apiclarity/api/server/models"
 	"github.com/apiclarity/apiclarity/backend/pkg/database"
 	"github.com/apiclarity/apiclarity/backend/pkg/k8straceannotator"
-	log "github.com/sirupsen/logrus"
 )
 
 type NamespacedBFLADetector interface {
@@ -22,17 +22,16 @@ type NamespacedBFLADetector interface {
 }
 
 type learnAndDetectBFLA struct {
-	namespace                    string
-	learningBegins, learningEnds time.Time
-	tracesCh                     chan *k8straceannotator.K8SAnnotatedK8STelemetry
-	suspiciousTracesCh           chan<- *k8straceannotator.K8SAnnotatedK8STelemetry
-	approveTraceCh               chan *database.APIEvent
-	denyTraceCh                  chan *database.APIEvent
-	doneCh                       chan struct{}
-	errCh                        chan error
-	repo                         AuthzModelRepository
-	openapiProvider              OpenAPIProvider
-	learnTracesNr                int
+	namespace          string
+	tracesCh           chan *k8straceannotator.K8SAnnotatedK8STelemetry
+	suspiciousTracesCh chan<- *k8straceannotator.K8SAnnotatedK8STelemetry
+	approveTraceCh     chan *database.APIEvent
+	denyTraceCh        chan *database.APIEvent
+	doneCh             chan struct{}
+	errCh              chan error
+	repo               AuthzModelRepository
+	openapiProvider    OpenAPIProvider
+	learnTracesNr      int
 }
 
 func (l *learnAndDetectBFLA) Run(ctx context.Context) {
@@ -46,6 +45,7 @@ func (l *learnAndDetectBFLA) Run(ctx context.Context) {
 		log.Infof("Waiting for traces tracesProcessed=%d", data.TracesProcessed)
 		select {
 		case trace := <-l.approveTraceCh:
+			log.Infof("Request approve trace id=%s", trace.RequestID)
 			servicesUpdated := l.appendTelemetryToAuthzModel(
 				trace.SourceK8sObject.Name,
 				trace.DestinationK8sObject.Name,
@@ -58,8 +58,6 @@ func (l *learnAndDetectBFLA) Run(ctx context.Context) {
 				log.Infof("Approved trace id=%s", trace.RequestID)
 				val, err := l.repo.Store(ctx, &NamespaceAuthorizationModel{
 					ID:              data.ID,
-					FirstTraceAt:    l.learningBegins,
-					LearningEndedAt: l.learningEnds,
 					Namespace:       l.namespace,
 					Services:        data.Services,
 					TracesProcessed: data.TracesProcessed,
@@ -72,21 +70,22 @@ func (l *learnAndDetectBFLA) Run(ctx context.Context) {
 			} else {
 				log.Infof("Trace trace id=%s already approved", trace.RequestID)
 			}
-		case req := <-l.denyTraceCh:
+		case trace := <-l.denyTraceCh:
+			log.Infof("Request deny trace id=%s", trace.RequestID)
 			serviceUpdated := false
-			destName := req.DestinationK8sObject.Name
-			resolvedPath := l.rezolvePath(destName, req.Path)
+			destName := trace.DestinationK8sObject.Name
+			resolvedPath := l.rezolvePath(destName, trace.Path)
 			model, ok := data.Services[destName]
 			if !ok {
 				log.Errorf("service %q not found", destName)
 				continue
 			}
 			opIndex, op := model.Operations.Find(func(op *Operation) bool {
-				return op.Path == resolvedPath && op.Method == string(req.Method)
+				return op.Path == resolvedPath && op.Method == string(trace.Method)
 			})
 			if op != nil {
 				audIndex, aud := op.Audience.Find(func(sa *ServiceAccount) bool {
-					return sa.Name == req.SourceK8sObject.Name
+					return sa.Name == trace.SourceK8sObject.Name
 				})
 				if aud != nil {
 					data.Services[destName].Operations[opIndex].Audience = append(data.Services[destName].Operations[opIndex].Audience[:audIndex], op.Audience[audIndex+1:]...)
@@ -127,8 +126,6 @@ func (l *learnAndDetectBFLA) Run(ctx context.Context) {
 					log.Info("bfla synced for authz model with id=%s", data.ID)
 					val, err := l.repo.Store(ctx, &NamespaceAuthorizationModel{
 						ID:              data.ID,
-						FirstTraceAt:    l.learningBegins,
-						LearningEndedAt: l.learningEnds,
 						Namespace:       l.namespace,
 						Services:        data.Services,
 						TracesProcessed: data.TracesProcessed,

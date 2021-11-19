@@ -154,15 +154,7 @@ func Run() {
 				if !ok {
 					return
 				}
-				code, err := strconv.Atoi(trace.SCNTResponse.StatusCode)
-				//srcIp, _ := getHostname(trace.Source.Address)
-				//dstIp, _ := getHostname(trace.Destination.Address)
-				if err == nil && (200 > code || code > 299) {
-					err = _database.UpdateAPIEventBFLAStatus(trace.RequestId, models.BFLAStatusSUSPICIOUSSRCDENIED)
-				} else {
-					err = _database.UpdateAPIEventBFLAStatus(trace.RequestId, models.BFLAStatusSUSPICIOUSSRCALLOWED)
-				}
-				if err != nil {
+				if err = _database.UpdateAPIEventBFLAStatusByRequestID(trace.RequestId, bfladetector.ResolveBFLAStatus(trace.SCNTResponse.StatusCode)); err != nil {
 					log.Errorf("unable to update the database record with bfla status: %s", err)
 				}
 			case <-globalCtx.Done():

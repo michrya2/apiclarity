@@ -20,12 +20,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"gorm.io/gorm/schema"
 	"time"
 
 	"github.com/go-openapi/strfmt"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 
 	"github.com/apiclarity/apiclarity/api/server/models"
 	"github.com/apiclarity/apiclarity/api/server/restapi/operations"
@@ -246,11 +246,35 @@ func CreateAPIEvent(event *APIEvent) {
 	}
 }
 
-func UpdateAPIEventBFLAStatus(requestId string, bflaStatus models.BFLAStatus) error {
+func UpdateAPIEventBFLAStatusByRequestID(requestId string, bflaStatus models.BFLAStatus) error {
 	retries := 5
 	for retries != 0 {
 		t := GetAPIEventsTable()
 		t = FilterIsString(t, requestIdColumnName, requestId)
+		t.UpdateColumn(bflaStatusColumnName, bflaStatus)
+		if t.Error != nil {
+			return t.Error
+		}
+		if t.RowsAffected == 0 {
+			log.Warn("no rows affected, trace not created yet, waiting: 2s")
+			time.Sleep(2 * time.Second)
+			retries--
+			continue
+		}
+		return nil
+	}
+
+	return errors.New("unable to update trace with BFLA status after 5 tries")
+}
+
+func UpdateAPIEventBFLAStatusByPathMethodSrcDest(path, method, dest, src string, bflaStatus models.BFLAStatus) error {
+	retries := 5
+	for retries != 0 {
+		t := GetAPIEventsTable()
+		t = FilterIsString(t, methodColumnName, method)
+		t = FilterIsString(t, pathColumnName, path)
+		t = FilterIsString(t, fmt.Sprintf("%s->>'name'", destinationK8sObjectColumnName), dest)
+		t = FilterIsString(t, fmt.Sprintf("%s->>'name'", sourceK8sObjectColumnName), src)
 		t.UpdateColumn(bflaStatusColumnName, bflaStatus)
 		if t.Error != nil {
 			return t.Error
