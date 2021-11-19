@@ -67,9 +67,9 @@ const Events = () => {
 
     const {pathname} = useLocation();
     const prevPathname = usePrevious(pathname);
-    
+
     const {generalFilters: filters, timeFilter, showNonApi} = useFilterState();
-    
+
     const filterDispatch = useFilterDispatch();
     const setTimeFilter = useCallback((timeFilter) => filterDispatch({type: FILTER_ACTIONS.SET_TIME, payload: timeFilter}), [filterDispatch]);
     const setFilters = (filters) => filterDispatch({type: FILTER_ACTIONS.SET_GENERAL, payload: filters});
@@ -130,7 +130,7 @@ const Events = () => {
                     {
                         title: <TabTitle title="Table view" icon={ICON_NAMES.TABLE} />,
                         to: getTableViewPath(path),
-                        component: () => <EventsTable filters={reuqestFilters} refreshTimestamp={refreshTimestamp} />
+                        component: () => <EventsTable refreshTable={doRefresh} filters={reuqestFilters} refreshTimestamp={refreshTimestamp} />
                     },
                     {
                         title: <TabTitle title="Graph view" icon={ICON_NAMES.GRAPH} />,
