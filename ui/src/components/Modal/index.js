@@ -6,7 +6,7 @@ import Button from 'components/Button';
 
 import './modal.scss';
 
-const Modal = ({title, children, onClose, className, height=380, onDone, doneTitle="Done", disableDone}) => {
+const Modal = ({title, children, onClose, className, height=380, onDone, doneTitle="Done", disableDone, top=0}) => {
     const [portalContainer, setPortalContainer] = useState(null);
 
     useEffect(() => {
@@ -15,7 +15,7 @@ const Modal = ({title, children, onClose, className, height=380, onDone, doneTit
         if (!container) {
             return;
         }
-        
+
         setPortalContainer(container);
     }, []);
 
@@ -24,7 +24,7 @@ const Modal = ({title, children, onClose, className, height=380, onDone, doneTit
     }
 
     return ReactDOM.createPortal(
-        <div className="modal-outer-wrapper">
+        <div className="modal-outer-wrapper" style={{ top: top }}>
             <div className={classnames("modal-inner-wrapper", className)} style={{height: `${height}px`}}>
                 <div className="modal-title">{title}</div>
                 <div className="modal-content">{children}</div>

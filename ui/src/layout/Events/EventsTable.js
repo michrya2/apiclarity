@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useHistory, useRouteMatch } from 'react-router-dom';
 import Table, { utils } from 'components/Table';
 import Tag from 'components/Tag';
@@ -7,8 +7,14 @@ import SpecDiffIcon, { SPEC_DIFF_TYPES_MAP } from 'components/SpecDiffIcon';
 import BflaStatusIcon, { BFLA_STATUS_TYPES_MAP } from 'components/BflaStatusIcon';
 import { formatDate } from 'utils/utils';
 import { API_TYPE_ITEMS } from 'layout/Inventory';
+import BflaModal from './BflaModal';
 
-const EventsTable = ({filters, refreshTimestamp}) => {
+const EventsTable = ({filters, refreshTimestamp, refreshTable}) => {
+    const [showBflaModal, setShowBflaModal] = useState(null);
+    const [selectedEvent, setSelectedEvent] = useState(null);
+    const [destinationNamespace, setDestinationNamespace] = useState(null);
+    const closeBflaModal = () => setShowBflaModal(null);
+
     const columns = useMemo(() => [
         {
             Header: 'Time',
@@ -116,15 +122,19 @@ const EventsTable = ({filters, refreshTimestamp}) => {
             id: "bflaStatus",
             width: 30,
             Cell: ({row}) => {
-                const {id, bflaStatus} = row.original;
-
+                const {id, bflaStatus, destinationK8sObject} = row.original;
+                const {namespace} = destinationK8sObject;
                 const {value} = BFLA_STATUS_TYPES_MAP[bflaStatus] || {};
+                const bflaModalType = value ? 'approve' : 'deny';
 
-                if (!value) {
-                    return <utils.EmptyValue />;
-                }
+                return <BflaStatusIcon onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowBflaModal(bflaModalType);
+                    setDestinationNamespace(namespace);
+                    setSelectedEvent(row.original);
 
-                return <BflaStatusIcon id={id} bflaStatusType={bflaStatus} />;
+                }} id={id} bflaStatusType={bflaStatus} />;
             }
         }
     ], []);
@@ -133,16 +143,20 @@ const EventsTable = ({filters, refreshTimestamp}) => {
     const {path} = useRouteMatch();
 
     return (
-        <Table
-            columns={columns}
-            paginationItemsName="APIs"
-            url="apiEvents"
-            defaultSortBy={[{id: "time", desc: true}]}
-            filters={filters}
-            onLineClick={({id}) => history.push(`${path}/${id}`)}
-            noResultsTitle="API events"
-            refreshTimestamp={refreshTimestamp}
-        />
+        <React.Fragment>
+            <Table
+                columns={columns}
+                paginationItemsName="APIs"
+                url="apiEvents"
+                defaultSortBy={[{ id: "time", desc: true }]}
+                filters={filters}
+                onLineClick={({ id }) => history.push(`${path}/${id}`)}
+                noResultsTitle="API events"
+                refreshTimestamp={refreshTimestamp}
+            />
+
+            {showBflaModal && <BflaModal event={selectedEvent} nameSpace={destinationNamespace} type={showBflaModal} onClose={closeBflaModal} onSuccess={refreshTable}/> }
+        </React.Fragment>
     )
 }
 
