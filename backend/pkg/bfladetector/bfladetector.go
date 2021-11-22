@@ -97,7 +97,7 @@ func (p *bflaDetector) initLearnAndDetectBFLA(namespace string, suspiciousTraces
 		approveTraceCh:     make(chan *database.APIEvent),
 		denyTraceCh:        make(chan *database.APIEvent),
 		doneCh:             make(chan struct{}),
-		errCh:              make(chan error),
+		errCh:              p.errCh,
 		repo:               p.repo,
 		openapiProvider:    p.openapiProvider,
 		learnTracesNr:      p.learnTracesNr,
