@@ -57,7 +57,7 @@ type BFLADetector interface {
 	DenyAPIEvent(ctx context.Context, id uint32) error
 }
 
-func New(ctx context.Context, repo AuthzModelRepository, learnTracesNr int, openapiProvider OpenAPIProvider) (proc *bflaDetector, err error) {
+func New(ctx context.Context, repo AuthzModelRepository, learnTracesNr int, openapiProvider OpenAPIProvider, apiEventRepo database.APIEventsTable) (proc *bflaDetector, err error) {
 	proc = &bflaDetector{
 		repo:            repo,
 		openapiProvider: openapiProvider,
@@ -65,6 +65,7 @@ func New(ctx context.Context, repo AuthzModelRepository, learnTracesNr int, open
 		learnTracesNr:   learnTracesNr,
 		approveTraceCh:  make(chan uint32),
 		denyTraceCh:     make(chan uint32),
+		apiEventRepo:    apiEventRepo,
 	}
 	go func() {
 		for {
@@ -84,6 +85,7 @@ type bflaDetector struct {
 	openapiProvider OpenAPIProvider
 	errCh           chan error
 	learnTracesNr   int
+	apiEventRepo    database.APIEventsTable
 
 	approveTraceCh chan uint32
 	denyTraceCh    chan uint32
@@ -130,7 +132,7 @@ func (p *bflaDetector) Run(ctx context.Context, enrichedTraceCh <-chan *k8strace
 			select {
 			case traceID := <-p.approveTraceCh:
 				log.Infof("Request approve trace event id=%d", traceID)
-				apiEvent, err := database.GetAPIEvent(traceID)
+				apiEvent, err := p.apiEventRepo.GetAPIEvent(traceID)
 				if err != nil {
 					p.errCh <- fmt.Errorf("API event with id=%q not found: %s", traceID, err)
 					continue
@@ -143,7 +145,7 @@ func (p *bflaDetector) Run(ctx context.Context, enrichedTraceCh <-chan *k8strace
 					namespaceInfo[apiEvent.DestinationK8sObject.Namespace] = namespacedDetector
 					log.Infof("Starting learning and detection for namespace=%s", apiEvent.DestinationK8sObject.Namespace)
 				}
-				if err := database.UpdateAPIEventBFLAStatusByPathMethodSrcDest(apiEvent.Path,
+				if err := p.apiEventRepo.UpdateAPIEventBFLAStatusByPathMethodSrcDest(apiEvent.Path,
 					string(apiEvent.Method),
 					apiEvent.DestinationK8sObject.Name,
 					apiEvent.SourceK8sObject.Name,
@@ -154,7 +156,7 @@ func (p *bflaDetector) Run(ctx context.Context, enrichedTraceCh <-chan *k8strace
 
 			case traceID := <-p.denyTraceCh:
 				log.Infof("Request deny trace event id=%d", traceID)
-				apiEvent, err := database.GetAPIEvent(traceID)
+				apiEvent, err := p.apiEventRepo.GetAPIEvent(traceID)
 				if err != nil {
 					p.errCh <- fmt.Errorf("API event with id=%d not found: %s", traceID, err)
 					continue
@@ -167,7 +169,7 @@ func (p *bflaDetector) Run(ctx context.Context, enrichedTraceCh <-chan *k8strace
 					namespaceInfo[apiEvent.DestinationK8sObject.Namespace] = namespacedDetector
 					log.Infof("Starting learning and detection for namespace=%s", apiEvent.DestinationK8sObject.Namespace)
 				}
-				if err := database.UpdateAPIEventBFLAStatusByPathMethodSrcDest(apiEvent.Path,
+				if err := p.apiEventRepo.UpdateAPIEventBFLAStatusByPathMethodSrcDest(apiEvent.Path,
 					string(apiEvent.Method),
 					apiEvent.DestinationK8sObject.Name,
 					apiEvent.SourceK8sObject.Name,

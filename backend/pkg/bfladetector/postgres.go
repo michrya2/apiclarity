@@ -16,12 +16,6 @@ import (
 	"github.com/apiclarity/apiclarity/backend/pkg/database"
 )
 
-func init() {
-	if err := database.DB.AutoMigrate(&NamespaceAuthorizationModels{}); err != nil {
-		log.Fatalf("Failed to run auto migration for Authorization Model: %v", err)
-	}
-}
-
 const (
 	authzModelTableName = "api_authzmodels"
 
@@ -87,6 +81,9 @@ func (s *Services) Scan(value interface{}) error {
 }
 
 func NewAuthZModelRepository(db *gorm.DB) *authzModelRepository {
+	if err := db.AutoMigrate(&NamespaceAuthorizationModels{}); err != nil {
+		log.Fatalf("Failed to run auto migration for Authorization Model: %v", err)
+	}
 	return &authzModelRepository{db: db}
 }
 
@@ -136,10 +133,16 @@ func (a authzModelRepository) UpdateNrOfTraces(ctx context.Context, namespace st
 		UpdateColumn(authzModelTracesProcessedColumnName, tracesProcessed).Error
 }
 
-type BFLAOpenAPIProvider struct{}
+func NewBFLAOpenAPIProvider(apiInventoryRepo database.APIInventoryTable) OpenAPIProvider {
+	return bflaOpenAPIProvider{apiInventoryRepo: apiInventoryRepo}
+}
 
-func (d BFLAOpenAPIProvider) GetOpenAPI(serviceName string) (spec io.Reader, err error) {
-	invInfo, err := database.GetAPIInventoryByName(serviceName)
+type bflaOpenAPIProvider struct {
+	apiInventoryRepo database.APIInventoryTable
+}
+
+func (d bflaOpenAPIProvider) GetOpenAPI(serviceName string) (spec io.Reader, err error) {
+	invInfo, err := d.apiInventoryRepo.GetAPIInventoryByName(serviceName)
 	if err != nil {
 		return nil, err
 	}

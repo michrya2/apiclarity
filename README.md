@@ -29,108 +29,54 @@ from real-time workload traffic seamlessly.
 
 ![High level architecture](diagram.jpg "High level architecture")
 
-## Building
 
-### Building UI and backend in docker
+## Getting started
 
-```shell
-DOCKER_IMAGE=<your repo>/apiclarity DOCKER_TAG=<your tag> make push-docker
-# Modify the image name of the APIClarity deployment in ./deployment/apiclarity.yaml
-```
+### Supported traffic source integrations
+APIClarity supports integrating with the following taffic sources. Install APIClarity and follow the instructions per required integration.
 
-### Building UI
+* Istio Service Mesh
+  * Make sure that Istio 1.10+ is installed and running in your cluster.
+  See the [Official installation instructions](https://istio.io/latest/docs/setup/getting-started/#install)
+  for more information.
 
-```shell
-make ui
-```
+* Kong API Gateway
 
-### Building Backend
+  * [Integration instructions](https://github.com/apiclarity/apiclarity/tree/master/plugins/gateway/kong)
 
-```shell
-make backend
-```
+* Tyk API Gateway
+  * [Integration instructions](https://github.com/apiclarity/apiclarity/tree/master/plugins/gateway/tyk)
 
-## Installation in a K8s cluster
+### Install APIClarity in a K8s cluster using Helm:
 
-1. Make sure that Istio is installed and running in your cluster.
-   See the [Official installation instructions](https://istio.io/latest/docs/setup/getting-started/#install)
-   for more information.
-
-2. Clone the apiclarity repository to your local system
+1. Add Helm repo
 
    ```shell
-   git clone https://github.com/apiclarity/apiclarity
-   cd apiclarity
+   helm repo add apiclarity https://apiclarity.github.io/apiclarity
    ```
 
-3. Deploy APIClarity in K8s. It will be deployed in a new namespace `apiclarity`:
+2. Deploy APIClarity with Helm
 
    ```shell
-   kubectl apply -f deployment/apiclarity.yaml
+   helm install --set 'global.namespaces={namespace1,namespace2}' --create-namespace apiclarity apiclarity/apiclarity -n apiclarity
    ```
+  **Note**:
+  Helm configures the monitored namespaces only for Istio intergation.
+  namespace1 and namespace2 are the namespaces where the Envoy Wasm filters will be deployed to allow traffic tracing. Leave the namespaces list empty when Istio   integration is not needed.
 
-   Note: The manifest uses `PersistentVolumeClaim`s to request two persistent
-   volumes. Make sure you have a default `StorageClass` available in your
-   cluster or, if deploying on a cluster that does not have this, edit the
-   manifest to provide your own local storage configuration.
-4. Verify that APIClarity is running:
+3. Port forward to APIClarity UI:
 
    ```shell
-   $ kubectl get pods -n apiclarity
-   NAME                        READY   STATUS    RESTARTS   AGE
-   apiclarity-5df5fd6d98-h8v7t   1/1     Running   0          15m
-   apiclarity-postgresql-0       1/1     Running   0          15m
+   kubectl port-forward -n apiclarity svc/apiclarity-apiclarity 9999:8080
    ```
 
-5. Initialize and pull the `wasm-filters` submodule:
-
-   ```shell
-   git submodule init wasm-filters
-   git submodule update wasm-filters
-   cd wasm-filters
-   ```
-
-6. Deploy the Envoy Wasm filter for capturing the traffic:
-
-   Run the Wasm deployment script for selected namespaces to allow traffic
-   tracing.
-
-   Tracing is accomplished by patching the Istio sidecars within the pods
-   to load the APIClarity Wasm filter. So ensure [Istio sidecar injection](https://istio.io/latest/docs/setup/additional-setup/sidecar-injection/)
-   is enabled for all namespaces you intend to trace before deploying anything
-   to that namespace.
-
-   The script will automatically:
-   - Deploy the Wasm filter binary as a config map
-   - Deploy the Istio Envoy filter to use the Wasm binary
-   - Patch all deployment annotations within the selected namespaces to mount
-     the Wasm binary
-
-   ```shell
-   ./deploy.sh <namespace1> <namespace2> ...
-   ```
-
-   **Note**:
-   To build the Wasm filter from source instead of using the pre-built binary,
-   please follow the instructions in the [wasm-filters](https://github.com/apiclarity/wasm-filters)
-   repository.
-7. Port forward to APIClarity UI:
-
-   ```shell
-   kubectl port-forward -n apiclarity svc/apiclarity 9999:8080
-   ```
-
-8. Open APIClarity UI in the browser: <http://localhost:9999/>
-9. Generate some traffic in the applications in the traced namespaces and check
-   the APIClarity UI :)
+4. Open APIClarity UI in the browser: <http://localhost:9999/>
+5. Generate some traffic in the traced applications and check the APIClarity UI :)
 
 ## Configurations
 
-The file `deployment/apiclarity.yaml` is used to deploy and configure APIClarity on your cluster.
-
-1. Set `RESPONSE_HEADERS_TO_IGNORE` and `REQUEST_HEADERS_TO_IGNORE` with a space separated list of headers to ignore when reconstructing the spec.
-
-    Note: Current values defined in `headers-to-ignore-config` ConfigMap
+The file [values.yaml](https://github.com/apiclarity/apiclarity/blob/master/charts/apiclarity/values.yaml) is used to deploy and configure APIClarity on your cluster via Helm.
+[This ConfigMap](https://github.com/apiclarity/apiclarity/blob/master/charts/apiclarity/templates/configmap.yaml) is used to define the list of headers to ignore when reconstructing the spec.
 
 ## Testing with a demo application
 
@@ -151,12 +97,10 @@ To deploy the Sock Shop Demo follow these steps:
    kubectl apply -f https://raw.githubusercontent.com/microservices-demo/microservices-demo/master/deploy/kubernetes/complete-demo.yaml
    ```
 
-3. From the APIClarity git repository deploy the Wasm filter in the `sock-shop`
-   namespace:
+3. Deploy APIClarity in the `sock-shop` namespace:
 
    ```shell
-   cd apiclarity/wasm-filters
-   ./deploy.sh sock-shop
+   helm install --set 'global.namespaces={sock-shop}' apiclarity apiclarity/apiclarity -n apiclarity
    ```
 
 4. Find the NodePort to access the Sock Shop Demo App
@@ -170,6 +114,16 @@ To deploy the Sock Shop Demo follow these steps:
 
    Use this port together with your node IP to access the demo webshop and run
    some transactions to generate data to review on the APIClarity dashboard.
+
+## Building
+
+### Building from source:
+Build and push the image to your repo:
+
+```shell
+DOCKER_IMAGE=<your docker registry>/apiclarity/apiclarity DOCKER_TAG=<your tag> make push-docker
+```
+Update [values.yaml](https://github.com/apiclarity/apiclarity/blob/master/charts/apiclarity/values.yaml) accordingly.
 
 ## Running locally with demo data
 
@@ -188,7 +142,7 @@ To deploy the Sock Shop Demo follow these steps:
 3. Run backend and frontend locally using demo data:
 
    ```shell
-   FAKE_TRACES=true FAKE_TRACES_PATH=./backend/pkg/test/trace_files \
+   DATABASE_DRIVER=LOCAL FAKE_TRACES=true FAKE_TRACES_PATH=./backend/pkg/test/trace_files \
    ENABLE_DB_INFO_LOGS=true ./backend/bin/backend run
    ```
 
