@@ -91,12 +91,12 @@ type bflaDetector struct {
 
 func (p *bflaDetector) initLearnAndDetectBFLA(namespace string, suspiciousTracesCh chan *k8straceannotator.K8SAnnotatedK8STelemetry) *learnAndDetectBFLA {
 	return &learnAndDetectBFLA{
-		namespace:          namespace,
 		tracesCh:           make(chan *k8straceannotator.K8SAnnotatedK8STelemetry),
-		suspiciousTracesCh: suspiciousTracesCh,
 		approveTraceCh:     make(chan *database.APIEvent),
 		denyTraceCh:        make(chan *database.APIEvent),
 		doneCh:             make(chan struct{}),
+		namespace:          namespace,
+		suspiciousTracesCh: suspiciousTracesCh,
 		errCh:              p.errCh,
 		repo:               p.repo,
 		openapiProvider:    p.openapiProvider,
@@ -179,12 +179,6 @@ func (p *bflaDetector) Run(ctx context.Context, enrichedTraceCh <-chan *k8strace
 				if !ok {
 					return
 				}
-				//traceTime, err := parseTraceTime(trace)
-				//if err != nil {
-				//	p.errCh <- err
-				//	continue
-				//}
-				//trace.TraceTime = traceTime
 				namespacedDetector, ok := namespaceInfo[trace.Destination.K8SObject.Namespace]
 				if !ok {
 					namespacedDetector = p.initLearnAndDetectBFLA(trace.Destination.K8SObject.Namespace, suspiciousTracesCh)

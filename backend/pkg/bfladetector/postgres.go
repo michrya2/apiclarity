@@ -87,17 +87,17 @@ func (s *Services) Scan(value interface{}) error {
 }
 
 func NewAuthZModelRepository(db *gorm.DB) *authzModelRepository {
-	return &authzModelRepository{table: db.Table(authzModelTableName)}
+	return &authzModelRepository{db: db}
 }
 
 type authzModelRepository struct {
-	table *gorm.DB
+	db *gorm.DB
 }
 
 func (a authzModelRepository) Load(ctx context.Context, namespace string) (*NamespaceAuthorizationModel, error) {
 	data := &NamespaceAuthorizationModels{}
-	tx := database.FilterIs(a.table, authzModelNamespaceColumnName, []string{namespace})
-	tx = a.table.WithContext(ctx).First(data)
+	tx := database.FilterIs(a.db.Table(authzModelTableName), authzModelNamespaceColumnName, []string{namespace})
+	tx = a.db.WithContext(ctx).First(data)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -119,7 +119,7 @@ func (a authzModelRepository) Store(ctx context.Context, data *NamespaceAuthoriz
 		TracesProcessed: data.TracesProcessed, Services: data.Services,
 	}
 
-	err := a.table.WithContext(ctx).Save(val).Error
+	err := a.db.Table(authzModelTableName).WithContext(ctx).Save(val).Error
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func (a authzModelRepository) Store(ctx context.Context, data *NamespaceAuthoriz
 }
 
 func (a authzModelRepository) UpdateNrOfTraces(ctx context.Context, namespace string, tracesProcessed int) error {
-	return a.table.WithContext(ctx).
+	return a.db.Table(authzModelTableName).WithContext(ctx).
 		Where(fmt.Sprintf("%s = ?", authzModelNamespaceColumnName), namespace).
 		UpdateColumn(authzModelTracesProcessedColumnName, tracesProcessed).Error
 }
