@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useHistory, useRouteMatch, useLocation } from 'react-router-dom';
 import classnames from 'classnames';
 import { isEmpty, isNull } from 'lodash';
-import { useNotificationDispatch, showNotification } from 'context/NotificationProvider'; 
+import { useNotificationDispatch, showNotification } from 'context/NotificationProvider';
 import { useFetch, FETCH_METHODS, usePrevious } from 'hooks';
 import ListDisplay from 'components/ListDisplay';
 import Button from 'components/Button';
@@ -13,11 +13,15 @@ import Modal from 'components/Modal';
 import BoldText from 'components/BoldText';
 import UploadSpec from './UploadSpec';
 import MethodHitCount from './MethodHitCount';
+import Authorized from './Authorized';
 import { SPEC_TYPES } from './utils';
 
 import emptySelectImage from 'utils/images/select.svg';
 
 import './specs.scss';
+
+// hardcoded for testing
+const AUTH_MODEL_NAMESPACE = 'sock-shop';
 
 const NotSelected = ({title}) => (
     <div className="not-selected-wrapper">
@@ -40,6 +44,7 @@ const MethodTitle = ({method, path}) => (
 const SelectedMethodDisplay = ({method, path, pathId, specType, inventoryName, onBack}) => (
     <div className="selected-method-wrapper">
         <BackHeader title={<MethodTitle method={method} path={path} />} onBack={onBack} />
+        <Authorized namespace={AUTH_MODEL_NAMESPACE} method={method} path={path} inventoryName={inventoryName}/>
         <MethodHitCount method={method} pathId={pathId} spec={inventoryName} specType={specType} />
     </div>
 )
@@ -173,7 +178,7 @@ const InnerTabs = ({selected, items, onSelect}) => (
 const Specs = ({inventoryId, inventoryName}) => {
     const {query} = useLocation();
     const {inititalSelectedTab=SPEC_TAB_ITEMS.PROVIDED.value} = query || {};
-    
+
     const [selectedTab, setSelectedTab] = useState(inititalSelectedTab);
     const {component: TabContentComponent, dataKey: specDataKey, value: type} = SPEC_TAB_ITEMS[selectedTab];
 
@@ -213,7 +218,7 @@ const Specs = ({inventoryId, inventoryName}) => {
     return (
         <React.Fragment>
             <div className="inventory-details-spec-wrapper">
-                {(loading || resetting) ? <Loader /> : 
+                {(loading || resetting) ? <Loader /> :
                     <React.Fragment>
                         <InnerTabs selected={selectedTab} items={Object.values(SPEC_TAB_ITEMS)} onSelect={selected => setSelectedTab(selected)} />
                         <TabContentComponent
@@ -235,7 +240,7 @@ const Specs = ({inventoryId, inventoryName}) => {
                     height={230}
                     onDone={() => {
                         doSpecReset();
-                    }} 
+                    }}
                     doneTitle="Reset"
                 >
                     <div>{resetConfirmationText}</div>
