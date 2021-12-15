@@ -38,7 +38,6 @@ import (
 	"github.com/apiclarity/apiclarity/backend/pkg/bfladetector"
 	_config "github.com/apiclarity/apiclarity/backend/pkg/config"
 	_database "github.com/apiclarity/apiclarity/backend/pkg/database"
-	"github.com/apiclarity/apiclarity/backend/pkg/database/fake"
 	"github.com/apiclarity/apiclarity/backend/pkg/healthz"
 	"github.com/apiclarity/apiclarity/backend/pkg/k8smonitor"
 	"github.com/apiclarity/apiclarity/backend/pkg/k8straceannotator"
@@ -55,23 +54,30 @@ type Backend struct {
 	stateBackupFileName string
 	monitor             *k8smonitor.Monitor
 	apiInventoryLock    sync.RWMutex
+	dbHandler           *_database.Handler
 	telemetryCh         <-chan *k8straceannotator.K8SAnnotatedK8STelemetry
 }
 
-func CreateBackend(config *_config.Config, monitor *k8smonitor.Monitor, telemetryCh <-chan *k8straceannotator.K8SAnnotatedK8STelemetry) *Backend {
-	speculator, err := _speculator.DecodeState(config.StateBackupFileName, config.SpeculatorConfig)
-	if err != nil {
-		log.Infof("No speculator state to decode, creating new: %v", err)
-		speculator = _speculator.CreateSpeculator(config.SpeculatorConfig)
-	} else {
-		log.Infof("Using encoded speculator state")
-	}
+func CreateBackend(config *_config.Config, monitor *k8smonitor.Monitor, speculator *_speculator.Speculator, dbHandler *_database.Handler, telemetryCh <-chan *k8straceannotator.K8SAnnotatedK8STelemetry) *Backend {
 	return &Backend{
 		speculator:          speculator,
 		stateBackupInterval: time.Second * time.Duration(config.StateBackupIntervalSec),
 		stateBackupFileName: config.StateBackupFileName,
 		monitor:             monitor,
 		telemetryCh:         telemetryCh,
+		dbHandler:           dbHandler,
+	}
+}
+
+func createDatabaseConfig(config *_config.Config) *_database.DBConfig {
+	return &_database.DBConfig{
+		DriverType:     config.DatabaseDriver,
+		EnableInfoLogs: config.EnableDBInfoLogs,
+		DBPassword:     config.DBPassword,
+		DBUser:         config.DBUser,
+		DBHost:         config.DBHost,
+		DBPort:         config.DBPort,
+		DBName:         config.DBName,
 	}
 }
 
@@ -99,6 +105,10 @@ func Run() {
 		log.Fatalf("failed to create K8s clientset: %v", err)
 	}
 
+	dbConfig := createDatabaseConfig(config)
+	dbHandler := _database.Init(dbConfig)
+	dbHandler.StartReviewTableCleaner(globalCtx, time.Duration(config.DatabaseCleanerIntervalSec)*time.Second)
+
 	var monitor *k8smonitor.Monitor
 	if !viper.GetBool(_database.FakeTracesEnvVar) && !viper.GetBool(_database.FakeDataEnvVar) {
 		monitor, err = k8smonitor.CreateMonitor(clientset)
@@ -109,9 +119,16 @@ func Run() {
 		monitor.Start()
 		defer monitor.Stop()
 	} else if viper.GetBool(_database.FakeDataEnvVar) {
-		go fake.CreateFakeData()
+		go dbHandler.CreateFakeData()
 	}
 
+	speculator, err := _speculator.DecodeState(config.StateBackupFileName, config.SpeculatorConfig)
+	if err != nil {
+		log.Infof("No speculator state to decode, creating new: %v", err)
+		speculator = _speculator.CreateSpeculator(config.SpeculatorConfig)
+	} else {
+		log.Infof("Using encoded speculator state")
+	}
 	tracesCh := make(chan *_spec.SCNTelemetry)
 	defer close(tracesCh)
 	k8sAnnotatedTrace1 := make(chan *k8straceannotator.K8SAnnotatedK8STelemetry)
@@ -119,7 +136,7 @@ func Run() {
 	k8sAnnotatedTrace2 := make(chan *k8straceannotator.K8SAnnotatedK8STelemetry)
 	defer close(k8sAnnotatedTrace2)
 
-	backend := CreateBackend(config, monitor, k8sAnnotatedTrace1)
+	backend := CreateBackend(config, monitor, speculator, dbHandler, k8sAnnotatedTrace1)
 	backend.Run(globalCtx)
 	k8sAnnorator, err := k8straceannotator.New(globalCtx, clientset)
 	if err != nil {
@@ -139,9 +156,9 @@ func Run() {
 			}
 		}
 	}()
-	authzmodelRepo := bfladetector.NewAuthZModelRepository(_database.DB)
+	authzmodelRepo := bfladetector.NewAuthZModelRepository(dbHandler.DB)
 	const NrOfTracesToLearn = 200
-	bflaDetector, err := bfladetector.New(globalCtx, authzmodelRepo, NrOfTracesToLearn, bfladetector.BFLAOpenAPIProvider{})
+	bflaDetector, err := bfladetector.New(globalCtx, authzmodelRepo, NrOfTracesToLearn, bfladetector.NewBFLAOpenAPIProvider(dbHandler.APIInventoryTable()), dbHandler.APIEventsTable())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -154,7 +171,7 @@ func Run() {
 				if !ok {
 					return
 				}
-				if err = _database.UpdateAPIEventBFLAStatusByRequestID(trace.RequestId, bfladetector.ResolveBFLAStatus(trace.SCNTResponse.StatusCode)); err != nil {
+				if err = dbHandler.APIEventsTable().UpdateAPIEventBFLAStatusByRequestID(trace.RequestId, bfladetector.ResolveBFLAStatus(trace.SCNTResponse.StatusCode)); err != nil {
 					log.Errorf("unable to update the database record with bfla status: %s", err)
 				}
 			case <-globalCtx.Done():
@@ -163,22 +180,27 @@ func Run() {
 		}
 	}()
 
-	tracesServer := traces.CreateHTTPTracesServer(config.HTTPTracesPort, func(trace *_spec.SCNTelemetry) error {
+	tracesServer, err := traces.CreateHTTPTracesServer(config.HTTPTracesPort, func(trace *_spec.SCNTelemetry) error {
 		tracesCh <- trace
 		return nil
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
 	tracesServer.Start(errChan)
 	defer tracesServer.Stop()
 
-	restServer, err := rest.CreateRESTServer(config.BackendRestPort, backend.speculator, authzmodelRepo, bflaDetector)
+	restServer, err := rest.CreateRESTServer(config.BackendRestPort, speculator, dbHandler, authzmodelRepo, bflaDetector)
 	if err != nil {
 		log.Fatalf("Failed to create REST server: %v", err)
 	}
 	restServer.Start(errChan)
 	defer restServer.Stop()
 
+	tracesServer.Start(errChan)
+	defer tracesServer.Stop()
+
 	backend.startStateBackup(globalCtx)
-	startReviewTableCleaner(globalCtx, time.Duration(config.DatabaseCleanerIntervalSec)*time.Second)
 
 	healthServer.SetIsReady(true)
 	log.Info("APIClarity backend is ready")
@@ -197,22 +219,6 @@ func Run() {
 	case s := <-sig:
 		log.Warningf("Received a termination signal: %v", s)
 	}
-}
-
-func startReviewTableCleaner(ctx context.Context, cleanInterval time.Duration) {
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				log.Debugf("Stopping database cleaner")
-				return
-			case <-time.After(cleanInterval):
-				if err := _database.GetReviewTable().Where("approved = ?", true).Delete(_database.Review{}).Error; err != nil {
-					log.Errorf("Failed to delete approved review from database. %v", err)
-				}
-			}
-		}
-	}()
 }
 
 type eventDiff struct {
@@ -265,6 +271,8 @@ func (b *Backend) handleHTTPTrace(trace *k8straceannotator.K8SAnnotatedK8STeleme
 	var providedDiff *_spec.APIDiff
 	var err error
 
+	log.Debugf("Handling telemetry: %+v", trace)
+
 	if trace.SCNTRequest.Host == "" {
 		headers := _spec.ConvertHeadersToMap(trace.SCNTRequest.Headers)
 		if host, ok := headers["host"]; ok {
@@ -308,8 +316,7 @@ func (b *Backend) handleHTTPTrace(trace *k8straceannotator.K8SAnnotatedK8STeleme
 	if !isNonAPI {
 		// lock the API inventory to avoid creating API entries twice on trace handling races
 		b.apiInventoryLock.Lock()
-		// TODO: Access the database via a database handler instance
-		if err := _database.GetAPIInventoryTable().Where(apiInfo).FirstOrCreate(&apiInfo).Error; err != nil {
+		if err := b.dbHandler.APIInventoryTable().FirstOrCreate(&apiInfo); err != nil {
 			b.apiInventoryLock.Unlock()
 			return fmt.Errorf("failed to get or create API info: %v", err)
 		}
@@ -397,7 +404,7 @@ func (b *Backend) handleHTTPTrace(trace *k8straceannotator.K8SAnnotatedK8STeleme
 
 	event.SpecDiffType = getHighestPrioritySpecDiffType(providedDiffType, reconstructedDiffType)
 
-	_database.CreateAPIEvent(event)
+	b.dbHandler.APIEventsTable().CreateAPIEvent(event)
 
 	return nil
 }
