@@ -45,7 +45,7 @@ const TestSelectPanes = ({catalogId, testElements, onNewTestClick, onScanComplet
                     title={title}
                     testDetails={testDetails}
                     catalogId={catalogId}
-                    severity={tags.severity || SYSTEM_RISKS.UNKNOWN.value}
+                    severity={tags.highestSeverity || SYSTEM_RISKS.UNKNOWN.value}
                     onScanComplete={onScanComplete}
                 />
             ),

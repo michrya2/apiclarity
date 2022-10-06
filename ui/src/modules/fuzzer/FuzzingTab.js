@@ -69,7 +69,7 @@ const convertTestResponse = async (apiId, data) => {
 
     let items = data.items || [];
     items = sortTestsDescending(items);
-    items = await Promise.all(items.map( async (t) => {
+    items = await Promise.all(items.map(async (t) => {
         const report = await getTest(apiId, t.starttime);
         t.tags = report.tags || [];
         t.tags = t.tags.map((t) => {
@@ -87,27 +87,25 @@ const convertTestResponse = async (apiId, data) => {
 
             return t;
         });
-        return t;
-    }));
 
-    items = items.map((test) => {
         const model = cloneDeep(testModel);
         model.testDetails = {
             ...model.testDetails,
             ...{
-                testId: '' + test.starttime,
-                fuzzingStatusMessage: test.errorMessage,
-                fuzzingProgress: test.progress,
-                fuzzingStartTime: formatDateBy(test.starttime * 1000),
+                testId: '' + t.starttime,
+                fuzzingStatusMessage: t.errorMessage,
+                fuzzingProgress: t.progress,
+                fuzzingStartTime: formatDateBy(t.starttime * 1000),
 
                 // TODO: need status to be on the list of tests from backend.
-                fuzzingStatus: getTestStatus(test),
-            }};
+                fuzzingStatus: getTestStatus(t),
+            }
+        };
 
-        // model.tags.severity = 'INFO';
-        model.tags.elements = test.tags;
+        model.tags.highestSeverity = report.highestSeverity;
+        model.tags.elements = t.tags;
         return model;
-    });
+    }));
     return items;
 };
 
